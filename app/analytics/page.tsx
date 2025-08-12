@@ -7,7 +7,9 @@ import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, TrendingUp, Clock, CheckCircle, AlertTriangle, Building } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BarChart3, Database, TrendingUp, Clock, CheckCircle, AlertTriangle, Building } from "lucide-react"
+import { CleanupDashboard } from "@/components/ui/cleanup-dashboard"
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
@@ -60,7 +62,7 @@ export default function AnalyticsPage() {
   const pendingRequests = requests.filter((r) => r.status === "قيد المراجعة").length
   const inProgressRequests = requests.filter((r) => r.status === "قيد التنفيذ").length
   const completedRequests = requests.filter((r) => r.status === "تم الإنجاز").length
-  const x =0
+
   // Branch analytics
   const branchStats = requests.reduce(
     (acc, request) => {
@@ -88,128 +90,168 @@ export default function AnalyticsPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-            <p className="text-gray-600 mt-2">Overview of maintenance requests across all branches</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
+        <div className="px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
+          <div className="mb-6">
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Analytics & Management</h1>
+            <p className="text-gray-600">System analytics and storage management</p>
           </div>
 
-          {/* Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Requests</p>
-                    <p className="text-2xl font-bold text-blue-600">{totalRequests}</p>
-                  </div>
-                  <BarChart3 className="w-8 h-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
+          <Tabs defaultValue="storage" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-white/80 backdrop-blur-sm">
+              <TabsTrigger value="storage" className="rounded-2xl flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                Storage
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="rounded-2xl flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="trends" className="rounded-2xl flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Trends
+              </TabsTrigger>
+            </TabsList>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-yellow-600">{pendingRequests}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-yellow-600" />
-                </div>
-              </CardContent>
-            </Card>
+            <TabsContent value="storage">
+              <CleanupDashboard />
+            </TabsContent>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">In Progress</p>
-                    <p className="text-2xl font-bold text-orange-600">{inProgressRequests}</p>
-                  </div>
-                  <AlertTriangle className="w-8 h-8 text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Completed</p>
-                    <p className="text-2xl font-bold text-green-600">{completedRequests}</p>
-                  </div>
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Branch Performance */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="w-5 h-5" />
-                  Branch Performance
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(branchStats).map(([branch, stats]) => (
-                    <div key={branch} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">{branch}</p>
-                        <p className="text-sm text-gray-600">
-                          {stats.completed}/{stats.total} completed
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-green-600">
-                          {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
-                        </p>
-                        <p className="text-xs text-gray-500">{stats.pending} pending</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Problem Types */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Common Issues
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(problemTypeStats)
-                    .sort(([, a], [, b]) => b - a)
-                    .slice(0, 8)
-                    .map(([type, count]) => (
-                      <div key={type} className="flex items-center justify-between">
-                        <p className="text-sm text-gray-900">{type}</p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{
-                                width: `${(count / Math.max(...Object.values(problemTypeStats))) * 100}%`,
-                              }}
-                            />
+            <TabsContent value="analytics">
+              <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle>Request Analytics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                            <p className="text-2xl font-bold text-blue-600">{totalRequests}</p>
                           </div>
-                          <span className="text-sm font-medium text-gray-600 w-8 text-right">{count}</span>
+                          <BarChart3 className="w-8 h-8 text-blue-600" />
                         </div>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Pending</p>
+                            <p className="text-2xl font-bold text-yellow-600">{pendingRequests}</p>
+                          </div>
+                          <Clock className="w-8 h-8 text-yellow-600" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">In Progress</p>
+                            <p className="text-2xl font-bold text-orange-600">{inProgressRequests}</p>
+                          </div>
+                          <AlertTriangle className="w-8 h-8 text-orange-600" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">Completed</p>
+                            <p className="text-2xl font-bold text-green-600">{completedRequests}</p>
+                          </div>
+                          <CheckCircle className="w-8 h-8 text-green-600" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Branch Performance */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Building className="w-5 h-5" />
+                          Branch Performance
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {Object.entries(branchStats).map(([branch, stats]) => (
+                            <div key={branch} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div>
+                                <p className="font-medium text-gray-900">{branch}</p>
+                                <p className="text-sm text-gray-600">
+                                  {stats.completed}/{stats.total} completed
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-green-600">
+                                  {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
+                                </p>
+                                <p className="text-xs text-gray-500">{stats.pending} pending</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Problem Types */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5" />
+                          Common Issues
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {Object.entries(problemTypeStats)
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 8)
+                            .map(([type, count]) => (
+                              <div key={type} className="flex items-center justify-between">
+                                <p className="text-sm text-gray-900">{type}</p>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-20 bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className="bg-blue-600 h-2 rounded-full"
+                                      style={{
+                                        width: `${(count / Math.max(...Object.values(problemTypeStats))) * 100}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-sm font-medium text-gray-600 w-8 text-right">{count}</span>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="trends">
+              <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle>Trend Analysis</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">Trend analysis coming soon...</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </AppLayout>
