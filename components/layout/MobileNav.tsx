@@ -3,7 +3,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
-import { Home, FileText, Plus, BarChart3, User, Building2, Users } from "lucide-react"
+import { Home, FileText, Plus, BarChart3, User, Building2, Users } from 'lucide-react'
 import Link from "next/link"
 import Image from "next/image"
 
@@ -87,12 +87,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
           <div className="p-6 bg-white/60 backdrop-blur-sm border-b">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
-                <User className="w-6 h-6 text-blue-600" />
+                <User className="w-5 h-5 text-blue-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 truncate">{user?.email}</p>
                 <div className="flex items-center gap-1 text-sm text-gray-600">
-                  <Building2 className="w-4 h-4" />
+                  <Building2 className="w-5 h-5" />
                   <span>Branch {user?.branchCode}</span>
                   {user?.isManager && <span className="text-blue-600 font-medium">• Manager</span>}
                 </div>
