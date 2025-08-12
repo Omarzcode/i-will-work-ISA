@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell } from "lucide-react"
+import { Bell, CheckCheck } from "lucide-react"
 import { useNotifications } from "@/hooks/useNotifications"
 
 export function NotificationBell() {
-  const { notifications, unreadCount } = useNotifications()
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const [open, setOpen] = useState(false)
 
   const formatTimeAgo = (timestamp: any) => {
@@ -23,6 +23,29 @@ export function NotificationBell() {
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
     return `${Math.floor(diffInMinutes / 1440)}d ago`
+  }
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "new_request":
+        return "🔧"
+      case "status_update":
+        return "📋"
+      case "success":
+        return "✅"
+      case "warning":
+        return "⚠️"
+      case "error":
+        return "❌"
+      default:
+        return "ℹ️"
+    }
+  }
+
+  const handleNotificationClick = (notification: any) => {
+    if (!notification.read) {
+      markAsRead(notification.id)
+    }
   }
 
   return (
@@ -42,11 +65,19 @@ export function NotificationBell() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Notifications</CardTitle>
-              {unreadCount > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {unreadCount} new
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {unreadCount} new
+                  </Badge>
+                )}
+                {notifications.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-6 px-2 text-xs">
+                    <CheckCheck className="w-3 h-3 mr-1" />
+                    Mark all read
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -58,17 +89,21 @@ export function NotificationBell() {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-3 border-b last:border-b-0 hover:bg-gray-50 ${
+                      className={`p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${
                         !notification.read ? "bg-blue-50" : ""
                       }`}
+                      onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{notification.title}</p>
-                          <p className="text-xs text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
-                          <p className="text-xs text-gray-400 mt-1">{formatTimeAgo(notification.timestamp)}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm">{getNotificationIcon(notification.type)}</span>
+                            <p className="text-sm font-medium text-gray-900 truncate">{notification.title}</p>
+                            {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
+                          </div>
+                          <p className="text-xs text-gray-600 line-clamp-2 mb-1">{notification.message}</p>
+                          <p className="text-xs text-gray-400">{formatTimeAgo(notification.timestamp)}</p>
                         </div>
-                        {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1 flex-shrink-0" />}
                       </div>
                     </div>
                   ))}

@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Search, Calendar, ImageIcon, Star, Trash2, MessageSquare } from "lucide-react"
+import { Search, Calendar, ImageIcon, FileText, Star, Trash2, Eye } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function MyRequestsPage() {
@@ -36,16 +36,17 @@ export default function MyRequestsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [cancellingRequest, setCancellingRequest] = useState<string | null>(null)
+  const [ratingRequest, setRatingRequest] = useState<string | null>(null)
   const [rating, setRating] = useState(0)
   const [feedback, setFeedback] = useState("")
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false)
-  const [cancellingRequest, setCancellingRequest] = useState<string | null>(null)
+  const [submittingRating, setSubmittingRating] = useState(false)
 
   useEffect(() => {
     if (user) {
       const requestsQuery = query(
         collection(db, "requests"),
-        where("userId", "==", user.uid),
+        where("branchCode", "==", user.branchCode),
         orderBy("timestamp", "desc"),
       )
 
@@ -81,40 +82,6 @@ export default function MyRequestsPage() {
     setFilteredRequests(filtered)
   }, [searchQuery, statusFilter, requests])
 
-  const handleRatingSubmit = async (requestId: string) => {
-    if (rating === 0) {
-      toast({
-        title: "Rating Required",
-        description: "Please select a rating before submitting.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsSubmittingRating(true)
-    try {
-      await updateDoc(doc(db, "requests", requestId), {
-        rating: rating,
-        feedback: feedback.trim() || null,
-      })
-      toast({
-        title: "Rating Submitted",
-        description: "Thank you for your feedback!",
-      })
-      setRating(0)
-      setFeedback("")
-    } catch (error) {
-      console.error("Error submitting rating:", error)
-      toast({
-        title: "Error",
-        description: "Failed to submit rating. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmittingRating(false)
-    }
-  }
-
   const handleCancelRequest = async (requestId: string) => {
     setCancellingRequest(requestId)
     try {
@@ -133,6 +100,42 @@ export default function MyRequestsPage() {
     } finally {
       setCancellingRequest(null)
     }
+  }
+
+  const handleRatingSubmit = async () => {
+    if (!ratingRequest || rating === 0) return
+
+    setSubmittingRating(true)
+    try {
+      await updateDoc(doc(db, "requests", ratingRequest), {
+        rating: rating,
+        feedback: feedback.trim() || null,
+      })
+
+      toast({
+        title: "Rating Submitted",
+        description: "Thank you for your feedback!",
+      })
+
+      setRatingRequest(null)
+      setRating(0)
+      setFeedback("")
+    } catch (error) {
+      console.error("Error submitting rating:", error)
+      toast({
+        title: "Error",
+        description: "Failed to submit rating. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSubmittingRating(false)
+    }
+  }
+
+  const openRatingDialog = (request: MaintenanceRequest) => {
+    setRatingRequest(request.id!)
+    setRating(request.rating || 0)
+    setFeedback(request.feedback || "")
   }
 
   const getStatusColor = (status: string) => {
@@ -189,7 +192,7 @@ export default function MyRequestsPage() {
     return status === "تم الإنجاز"
   }
 
-  const renderStars = (currentRating: number, interactive = false, onStarClick?: (rating: number) => void) => {
+  const renderStars = (currentRating: number, interactive = false) => {
     return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -198,7 +201,7 @@ export default function MyRequestsPage() {
             className={`w-5 h-5 cursor-pointer transition-colors ${
               star <= currentRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-300"
             }`}
-            onClick={() => interactive && onStarClick && onStarClick(star)}
+            onClick={() => interactive && setRating(star)}
           />
         ))}
       </div>
@@ -221,7 +224,7 @@ export default function MyRequestsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">My Requests</h1>
-            <p className="text-gray-600 mt-2">Track your maintenance requests</p>
+            <p className="text-gray-600 mt-2">Track and manage your maintenance requests</p>
           </div>
 
           {/* Filters */}
@@ -256,7 +259,7 @@ export default function MyRequestsPage() {
             {filteredRequests.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">No requests found</p>
                 </CardContent>
               </Card>
@@ -271,8 +274,8 @@ export default function MyRequestsPage() {
                           <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
                           {request.rating && (
                             <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full">
-                              <Star className="w-4 h-4 fill-green-500 text-green-500" />
-                              <span className="text-sm font-medium text-green-700">Rated {request.rating}/5</span>
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              <span className="text-sm font-medium text-green-800">Rated {request.rating}/5</span>
                             </div>
                           )}
                         </div>
@@ -301,6 +304,76 @@ export default function MyRequestsPage() {
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
+                                <Eye className="w-4 h-4 mr-1" />
+                                View Details
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>Request Details</DialogTitle>
+                              </DialogHeader>
+                              {selectedRequest && (
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Problem Type</label>
+                                      <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Status</label>
+                                      <Badge className={getStatusColor(selectedRequest.status)}>
+                                        {getStatusText(selectedRequest.status)}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Description</label>
+                                    <p className="text-sm text-gray-900 mt-1">{selectedRequest.description}</p>
+                                  </div>
+                                  {selectedRequest.imageUrl && (
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Attached Photo</label>
+                                      <img
+                                        src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                        alt="Request attachment"
+                                        className="mt-2 max-w-full h-64 object-cover rounded-lg border"
+                                      />
+                                    </div>
+                                  )}
+                                  {selectedRequest.completionMessage && (
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Completion Message</label>
+                                      <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                                        <p className="text-sm text-green-700">{selectedRequest.completionMessage}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {selectedRequest.rating && (
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">
+                                        Your Rating & Feedback
+                                      </label>
+                                      <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          {renderStars(selectedRequest.rating)}
+                                          <span className="text-sm font-medium text-yellow-800">
+                                            ({selectedRequest.rating}/5)
+                                          </span>
+                                        </div>
+                                        {selectedRequest.feedback && (
+                                          <p className="text-sm text-gray-700">{selectedRequest.feedback}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </DialogContent>
+                          </Dialog>
+
                           {/* Cancel Request Button */}
                           {canCancelRequest(request.status) && (
                             <AlertDialog>
@@ -338,12 +411,8 @@ export default function MyRequestsPage() {
                               <DialogTrigger asChild>
                                 <Button
                                   size="sm"
-                                  variant={request.rating ? "outline" : "default"}
-                                  onClick={() => {
-                                    setSelectedRequest(request)
-                                    setRating(request.rating || 0)
-                                    setFeedback(request.feedback || "")
-                                  }}
+                                  onClick={() => openRatingDialog(request)}
+                                  className="bg-green-600 hover:bg-green-700"
                                 >
                                   <Star className="w-4 h-4 mr-1" />
                                   {request.rating ? "Update Rating" : "Rate Service"}
@@ -351,18 +420,18 @@ export default function MyRequestsPage() {
                               </DialogTrigger>
                               <DialogContent>
                                 <DialogHeader>
-                                  <DialogTitle>Rate Your Service Experience</DialogTitle>
+                                  <DialogTitle>Rate Service</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div>
                                     <label className="text-sm font-medium text-gray-700 mb-2 block">
-                                      How would you rate the service?
+                                      How would you rate this service?
                                     </label>
-                                    {renderStars(rating, true, setRating)}
+                                    {renderStars(rating, true)}
                                   </div>
                                   <div>
                                     <label className="text-sm font-medium text-gray-700 mb-2 block">
-                                      Additional feedback (optional)
+                                      Additional Feedback (Optional)
                                     </label>
                                     <Textarea
                                       placeholder="Share your experience..."
@@ -371,12 +440,25 @@ export default function MyRequestsPage() {
                                       rows={3}
                                     />
                                   </div>
-                                  <div className="flex gap-2 justify-end">
+                                  <div className="flex gap-2">
                                     <Button
-                                      onClick={() => handleRatingSubmit(selectedRequest?.id!)}
-                                      disabled={isSubmittingRating || rating === 0}
+                                      variant="outline"
+                                      onClick={() => {
+                                        setRatingRequest(null)
+                                        setRating(0)
+                                        setFeedback("")
+                                      }}
+                                      disabled={submittingRating}
+                                      className="flex-1"
                                     >
-                                      {isSubmittingRating ? "Submitting..." : "Submit Rating"}
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      onClick={handleRatingSubmit}
+                                      disabled={rating === 0 || submittingRating}
+                                      className="flex-1 bg-green-600 hover:bg-green-700"
+                                    >
+                                      {submittingRating ? "Submitting..." : "Submit Rating"}
                                     </Button>
                                   </div>
                                 </div>

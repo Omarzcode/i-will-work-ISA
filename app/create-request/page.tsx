@@ -45,6 +45,23 @@ export default function CreateRequestPage() {
     setImagePreview(null)
   }
 
+  const createNotificationForManagers = async (requestId: string, problemType: string, branchCode: string) => {
+    try {
+      await addDoc(collection(db, "notifications"), {
+        title: "New Maintenance Request",
+        message: `New ${problemType} request from ${branchCode} branch`,
+        type: "new_request",
+        timestamp: serverTimestamp(),
+        read: false,
+        requestId: requestId,
+        branchCode: branchCode,
+        isForManager: true,
+      })
+    } catch (error) {
+      console.error("Error creating notification:", error)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -69,14 +86,18 @@ export default function CreateRequestPage() {
       }
 
       // Create request document
-      await addDoc(collection(db, "requests"), {
+      const docRef = await addDoc(collection(db, "requests"), {
         branchCode: user?.branchCode || "unknown",
         problemType,
         description: description.trim(),
         status: "قيد المراجعة",
         timestamp: serverTimestamp(),
         imageUrl,
+        userId: user?.uid || "",
       })
+
+      // Create notification for managers
+      await createNotificationForManagers(docRef.id, problemType, user?.branchCode || "unknown")
 
       toast({
         title: "Request Submitted Successfully!",

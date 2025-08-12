@@ -18,3 +18,26 @@ export interface MaintenanceRequest {
   feedback?: string
   completionMessage?: string
 }
+
+export interface Notification {
+  id?: string
+  title: string
+  message: string
+  timestamp: any
+  read: boolean
+  type: "new_request" | "status_update" | "info" | "success" | "warning" | "error"
+  requestId?: string
+  branchCode?: string
+  isForManager?: boolean
+}
+
+export const PROBLEM_TYPES = [
+  "Air Conditioning",
+  "Plumbing",
+  "Electrical",
+  "Equipment Malfunction",
+  "Cleaning",
+  "Furniture",
+  "Security",
+  "Other",
+]

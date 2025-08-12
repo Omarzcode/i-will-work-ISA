@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore"
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
@@ -66,15 +66,51 @@ export default function ManagerPage() {
     setFilteredRequests(filtered)
   }, [searchQuery, statusFilter, requests])
 
+  const createNotificationForBranch = async (
+    requestId: string,
+    branchCode: string,
+    newStatus: string,
+    problemType: string,
+  ) => {
+    try {
+      const statusMessages = {
+        "تمت الموافقة": "Your request has been approved and will be processed soon.",
+        "قيد التنفيذ": "Work has started on your request.",
+        "تم الإنجاز": "Your request has been completed successfully.",
+        مرفوض: "Your request has been rejected. Please contact support for more information.",
+      }
+
+      await addDoc(collection(db, "notifications"), {
+        title: "Request Status Updated",
+        message: `Your ${problemType} request status: ${getStatusText(newStatus)}. ${statusMessages[newStatus as keyof typeof statusMessages] || ""}`,
+        type: "status_update",
+        timestamp: serverTimestamp(),
+        read: false,
+        requestId: requestId,
+        branchCode: branchCode,
+        isForManager: false,
+      })
+    } catch (error) {
+      console.error("Error creating notification:", error)
+    }
+  }
+
   const handleStatusUpdate = async (requestId: string, newStatus: string, message?: string) => {
     setUpdatingStatus(requestId)
     try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
+
       const updateData: any = { status: newStatus }
       if (message && newStatus === "تم الإنجاز") {
         updateData.completionMessage = message
       }
 
       await updateDoc(doc(db, "requests", requestId), updateData)
+
+      // Create notification for branch user
+      await createNotificationForBranch(requestId, request.branchCode, newStatus, request.problemType)
+
       toast({
         title: "Status Updated",
         description: "Request status has been updated successfully.",
