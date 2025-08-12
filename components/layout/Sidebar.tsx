@@ -4,7 +4,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Home, FileText, Plus, Settings, BarChart3, Users, Building, Coffee } from "lucide-react"
+import { Home, FileText, Plus, BarChart3, Users, Building, Coffee } from "lucide-react"
 
 const navigationItems = [
   {
@@ -100,18 +100,6 @@ export function Sidebar() {
           })}
         </nav>
       </ScrollArea>
-
-      {/* Footer */}
-      <div className="p-4 border-t">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-gray-700 hover:bg-gray-100"
-          onClick={() => router.push("/settings")}
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </Button>
-      </div>
     </div>
   )
 }

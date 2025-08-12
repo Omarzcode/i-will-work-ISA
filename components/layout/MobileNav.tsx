@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Home, FileText, Plus, Settings, BarChart3, Users, Building, Coffee, X } from "lucide-react"
+import { Home, FileText, Plus, BarChart3, Users, Building, Coffee } from "lucide-react"
 
 interface MobileNavProps {
   open: boolean
@@ -66,17 +66,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent side="left" className="w-80 p-0">
         <SheetHeader className="p-6 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Coffee className="h-8 w-8 text-blue-600" />
-              <div>
-                <SheetTitle className="text-lg font-bold text-gray-900">Caribou</SheetTitle>
-                <p className="text-xs text-gray-500">Maintenance System</p>
-              </div>
+          <div className="flex items-center gap-2">
+            <Coffee className="h-8 w-8 text-blue-600" />
+            <div>
+              <SheetTitle className="text-lg font-bold text-gray-900">Caribou</SheetTitle>
+              <p className="text-xs text-gray-500">Maintenance System</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </SheetHeader>
 
@@ -116,18 +111,6 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
             })}
           </nav>
         </ScrollArea>
-
-        {/* Footer */}
-        <div className="p-4 border-t">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 text-gray-700 hover:bg-gray-100"
-            onClick={() => handleNavigation("/settings")}
-          >
-            <Settings className="h-4 w-4" />
-            Settings
-          </Button>
-        </div>
       </SheetContent>
     </Sheet>
   )
