@@ -8,12 +8,12 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Caribou Maintenance System",
-  description: "Maintenance management system for Caribou Coffee",
+  description: "Professional maintenance management system for Caribou Coffee",
   generator: "v0.dev",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/caribou-logo.png",
+    icon: "/maintenance-logo.png",
+    shortcut: "/maintenance-logo.png",
+    apple: "/maintenance-logo.png",
   },
 }
 

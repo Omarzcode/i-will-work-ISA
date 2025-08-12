@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Home, FileText, Plus, BarChart3, Users, Building, Coffee } from "lucide-react"
+import { Home, FileText, Plus, BarChart3, Users, Building, X } from "lucide-react"
+import Image from "next/image"
 
 const navigationItems = [
   {
@@ -64,24 +65,35 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-64 p-0">
-        <div className="flex h-full w-full flex-col bg-white">
-          {/* Logo */}
-          <SheetHeader className="flex h-16 items-center border-b px-6">
-            <SheetTitle className="flex items-center gap-2">
-              <Coffee className="h-8 w-8 text-blue-600" />
+      <SheetContent side="left" className="w-80 p-0">
+        <div className="flex h-full flex-col">
+          {/* Header */}
+          <SheetHeader className="flex-row items-center justify-between p-6 border-b">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center p-1">
+                <Image
+                  src="/maintenance-logo.png"
+                  alt="Maintenance System"
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
+              </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">Caribou</h1>
+                <SheetTitle className="text-lg font-bold text-gray-900">Caribou</SheetTitle>
                 <p className="text-xs text-gray-500">Maintenance System</p>
               </div>
-            </SheetTitle>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-5 w-5" />
+            </Button>
           </SheetHeader>
 
           {/* User Info */}
-          <div className="p-4 border-b">
+          <div className="p-6 border-b">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <Building className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+                <Building className="w-5 h-5 text-teal-600" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">{user?.isManager ? "Manager" : user?.branchCode}</p>
@@ -91,7 +103,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
           </div>
 
           {/* Navigation */}
-          <ScrollArea className="flex-1 px-3 py-4">
+          <ScrollArea className="flex-1 px-6 py-4">
             <nav className="space-y-2">
               {filteredItems.map((item) => {
                 const isActive = pathname === item.href
@@ -102,7 +114,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                     key={item.href}
                     variant={isActive ? "default" : "ghost"}
                     className={`w-full justify-start gap-3 ${
-                      isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-700 hover:bg-gray-100"
+                      isActive ? "bg-teal-600 text-white hover:bg-teal-700" : "text-gray-700 hover:bg-gray-100"
                     }`}
                     onClick={() => handleNavigation(item.href)}
                   >

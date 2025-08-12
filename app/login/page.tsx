@@ -52,12 +52,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-teal-400 via-teal-500 to-teal-600 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg">
-            <Image src="/caribou-logo.png" alt="Caribou Coffee" width={80} height={80} className="rounded-full" />
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg p-2">
+            <Image
+              src="/maintenance-logo.png"
+              alt="Maintenance System"
+              width={80}
+              height={80}
+              className="object-contain"
+            />
           </div>
         </div>
 
@@ -77,7 +83,7 @@ export default function LoginPage() {
                   placeholder="Username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-14 px-4 bg-gray-50 border-0 rounded-2xl text-gray-700 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 transition-all"
+                  className="h-14 px-4 bg-gray-50 border-0 rounded-2xl text-gray-700 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 transition-all"
                   required
                 />
               </div>
@@ -89,7 +95,7 @@ export default function LoginPage() {
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-14 px-4 pr-12 bg-gray-50 border-0 rounded-2xl text-gray-700 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 transition-all"
+                  className="h-14 px-4 pr-12 bg-gray-50 border-0 rounded-2xl text-gray-700 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 transition-all"
                   required
                 />
                 <button
@@ -110,7 +116,7 @@ export default function LoginPage() {
               {/* Sign In Button */}
               <Button
                 type="submit"
-                className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-lg rounded-2xl shadow-lg transition-all duration-200 border-0"
+                className="w-full h-14 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold text-lg rounded-2xl shadow-lg transition-all duration-200 border-0"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -126,7 +132,7 @@ export default function LoginPage() {
 
             {/* Need Help Link */}
             <div className="text-center mt-6">
-              <button className="text-blue-500 hover:text-blue-600 font-medium transition-colors">Need help?</button>
+              <button className="text-teal-600 hover:text-teal-700 font-medium transition-colors">Need help?</button>
             </div>
           </CardContent>
         </Card>
@@ -142,10 +148,10 @@ export default function LoginPage() {
           <CardContent className="space-y-3 px-6 pb-6">
             <Button
               variant="outline"
-              className="w-full h-12 border-2 border-blue-200 hover:bg-blue-50 hover:border-blue-300 transition-colors bg-white/80 rounded-xl"
+              className="w-full h-12 border-2 border-teal-200 hover:bg-teal-50 hover:border-teal-300 transition-colors bg-white/80 rounded-xl"
               onClick={() => fillDemoCredentials("manager")}
             >
-              <Shield className="mr-2 h-4 w-4 text-blue-600" />
+              <Shield className="mr-2 h-4 w-4 text-teal-600" />
               <span className="font-medium text-gray-700">Manager Account</span>
             </Button>
             <Button
@@ -158,6 +164,11 @@ export default function LoginPage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-white/80">© 2024 Caribou Maintenance System. All rights reserved.</p>
+        </div>
       </div>
     </div>
   )
