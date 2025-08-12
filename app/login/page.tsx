@@ -62,7 +62,7 @@ export default function LoginPage() {
               alt="Maintenance System"
               width={80}
               height={80}
-              className="object-contain"
+              className="object-contain rounded-2xl"
             />
           </div>
         </div>

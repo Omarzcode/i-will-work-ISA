@@ -76,7 +76,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                   alt="Maintenance System"
                   width={32}
                   height={32}
-                  className="object-contain"
+                  className="object-contain rounded-xl"
                 />
               </div>
               <div>

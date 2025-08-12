@@ -73,7 +73,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   alt="Maintenance System"
                   width={24}
                   height={24}
-                  className="object-contain"
+                  className="object-contain rounded-xl"
                 />
               </div>
               <span className="text-lg font-semibold text-gray-900">Caribou</span>

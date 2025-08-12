@@ -63,7 +63,7 @@ export function Sidebar() {
               alt="Maintenance System"
               width={32}
               height={32}
-              className="object-contain"
+              className="object-contain rounded-xl"
             />
           </div>
           <div>
