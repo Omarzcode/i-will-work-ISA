@@ -47,8 +47,20 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <div className="w-8 h-8 bg-blue-100 rounded-2xl flex items-center justify-center p-1 mx-auto mb-2">
+            <Image
+              src="/maintenance-logo.png"
+              alt="Maintenance System"
+              width={24}
+              height={24}
+              className="object-contain rounded-xl"
+            />
+          </div>
+          <p className="text-blue-600 font-medium">Loading...</p>
+        </div>
       </div>
     )
   }
@@ -59,30 +71,43 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
+      {/* Mobile Header - Optimized for touch */}
       <div className="lg:hidden">
-        <div className="flex items-center justify-between p-4 bg-white border-b rounded-b-3xl">
+        <div className="sticky top-0 z-50 flex items-center justify-between p-4 bg-white border-b shadow-sm">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="rounded-2xl">
-              <Menu className="h-6 w-6" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="h-12 w-12 rounded-2xl hover:bg-blue-50 active:bg-blue-100 transition-colors"
+            >
+              <Menu className="h-6 w-6 text-gray-700" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-100 rounded-2xl flex items-center justify-center p-1">
+              <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center p-1">
                 <Image
                   src="/maintenance-logo.png"
                   alt="Maintenance System"
-                  width={24}
-                  height={24}
+                  width={32}
+                  height={32}
                   className="object-contain rounded-xl"
                 />
               </div>
-              <span className="text-lg font-semibold text-gray-900">Caribou</span>
+              <div>
+                <span className="text-lg font-bold text-gray-900">Caribou</span>
+                <p className="text-xs text-gray-500 leading-none">Maintenance</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)} className="rounded-2xl">
-              <LogOut className="h-5 w-5" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLogoutDialogOpen(true)}
+              className="h-12 w-12 rounded-2xl hover:bg-red-50 active:bg-red-100 transition-colors"
+            >
+              <LogOut className="h-5 w-5 text-gray-700" />
             </Button>
           </div>
         </div>
@@ -123,27 +148,27 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </div>
 
-      {/* Mobile Content */}
+      {/* Mobile Content - Optimized spacing and touch targets */}
       <div className="lg:hidden">
-        <main className="flex-1 p-4">
-          <div className="bg-white rounded-3xl shadow-sm border min-h-[calc(100vh-120px)] p-4">{children}</div>
+        <main className="flex-1 p-3">
+          <div className="bg-white rounded-3xl shadow-sm border min-h-[calc(100vh-100px)] p-4 mb-20">{children}</div>
         </main>
       </div>
 
-      {/* Logout Confirmation Dialog */}
+      {/* Logout Confirmation Dialog - Mobile optimized */}
       <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <DialogContent className="rounded-3xl">
+        <DialogContent className="rounded-3xl mx-4 max-w-sm">
           <DialogHeader>
-            <DialogTitle>Confirm Logout</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-center">Confirm Logout</DialogTitle>
+            <DialogDescription className="text-center">
               Are you sure you want to logout? You will need to sign in again to access your account.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLogoutDialogOpen(false)} className="rounded-2xl">
+          <DialogFooter className="flex-col gap-3 sm:flex-row">
+            <Button variant="outline" onClick={() => setLogoutDialogOpen(false)} className="rounded-2xl h-12 w-full">
               Cancel
             </Button>
-            <Button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 rounded-2xl">
+            <Button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 rounded-2xl h-12 w-full">
               Logout
             </Button>
           </DialogFooter>
