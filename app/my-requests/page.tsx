@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc } from "firebase/firestore"
+import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, FileText, Calendar, ImageIcon, Plus, Eye, Trash2 } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Search, FileText, Calendar, ImageIcon, Plus, Eye, Trash2, Star } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -38,6 +39,13 @@ export default function MyRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+
+  // Rating and feedback states
+  const [showRatingDialog, setShowRatingDialog] = useState(false)
+  const [ratingRequest, setRatingRequest] = useState<MaintenanceRequest | null>(null)
+  const [rating, setRating] = useState(0)
+  const [feedback, setFeedback] = useState("")
+  const [submittingRating, setSubmittingRating] = useState(false)
 
   useEffect(() => {
     if (user && !user.isManager) {
@@ -102,8 +110,50 @@ export default function MyRequestsPage() {
     }
   }
 
+  const handleSubmitRating = async () => {
+    if (!ratingRequest?.id || rating === 0) return
+
+    setSubmittingRating(true)
+    try {
+      await updateDoc(doc(db, "requests", ratingRequest.id), {
+        rating: rating,
+        feedback: feedback.trim(),
+      })
+
+      toast({
+        title: "Rating Submitted",
+        description: "Thank you for your feedback!",
+      })
+
+      setShowRatingDialog(false)
+      setRating(0)
+      setFeedback("")
+      setRatingRequest(null)
+    } catch (error) {
+      console.error("Error submitting rating:", error)
+      toast({
+        title: "Error",
+        description: "Failed to submit rating. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSubmittingRating(false)
+    }
+  }
+
+  const openRatingDialog = (request: MaintenanceRequest) => {
+    setRatingRequest(request)
+    setRating(request.rating || 0)
+    setFeedback(request.feedback || "")
+    setShowRatingDialog(true)
+  }
+
   const canCancelRequest = (status: string) => {
     return status === "قيد المراجعة" || status === "تمت الموافقة"
+  }
+
+  const canRateRequest = (request: MaintenanceRequest) => {
+    return request.status === "تم الإنجاز"
   }
 
   const getStatusColor = (status: string) => {
@@ -150,6 +200,22 @@ export default function MyRequestsPage() {
       hour: "2-digit",
       minute: "2-digit",
     })
+  }
+
+  const renderStars = (currentRating: number, interactive = false) => {
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`w-5 h-5 ${
+              star <= currentRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+            } ${interactive ? "cursor-pointer hover:text-yellow-400" : ""}`}
+            onClick={interactive ? () => setRating(star) : undefined}
+          />
+        ))}
+      </div>
+    )
   }
 
   if (isLoading) {
@@ -227,6 +293,17 @@ export default function MyRequestsPage() {
 
                         <p className="text-gray-600 mb-4 line-clamp-2">{request.description}</p>
 
+                        {/* Show rating if completed and rated */}
+                        {request.status === "تم الإنجاز" && request.rating && (
+                          <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm font-medium text-green-800">Your Rating:</span>
+                              {renderStars(request.rating)}
+                            </div>
+                            {request.feedback && <p className="text-sm text-green-700">{request.feedback}</p>}
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
@@ -240,7 +317,7 @@ export default function MyRequestsPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
@@ -280,6 +357,19 @@ export default function MyRequestsPage() {
                                       />
                                     </div>
                                   )}
+                                  {selectedRequest.rating && (
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">
+                                        Your Rating & Feedback
+                                      </label>
+                                      <div className="mt-2">
+                                        {renderStars(selectedRequest.rating)}
+                                        {selectedRequest.feedback && (
+                                          <p className="text-sm text-gray-900 mt-2">{selectedRequest.feedback}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                   <div>
                                     <label className="text-sm font-medium text-gray-700">Submitted</label>
                                     <p className="text-sm text-gray-900">{formatDate(selectedRequest.timestamp)}</p>
@@ -317,6 +407,17 @@ export default function MyRequestsPage() {
                               </AlertDialogContent>
                             </AlertDialog>
                           )}
+
+                          {canRateRequest(request) && (
+                            <Button
+                              size="sm"
+                              onClick={() => openRatingDialog(request)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Star className="w-4 h-4 mr-1" />
+                              {request.rating ? "Update Rating" : "Rate Service"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -326,6 +427,46 @@ export default function MyRequestsPage() {
             )}
           </div>
         </div>
+
+        {/* Rating Dialog */}
+        <Dialog open={showRatingDialog} onOpenChange={setShowRatingDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Rate This Service</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  How would you rate the service quality?
+                </label>
+                {renderStars(rating, true)}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Additional Comments (Optional)</label>
+                <Textarea
+                  placeholder="Share your experience with the maintenance service..."
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  rows={4}
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowRatingDialog(false)} disabled={submittingRating}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmitRating}
+                  disabled={rating === 0 || submittingRating}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {submittingRating ? "Submitting..." : "Submit Rating"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   )

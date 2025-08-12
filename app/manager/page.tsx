@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle } from "lucide-react"
+import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle, Star, Eye } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 
@@ -134,6 +134,19 @@ export default function ManagerPage() {
     })
   }
 
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`w-4 h-4 ${star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
+          />
+        ))}
+      </div>
+    )
+  }
+
   const getStatusStats = () => {
     const stats = {
       pending: requests.filter((r) => r.status === "قيد المراجعة").length,
@@ -142,6 +155,26 @@ export default function ManagerPage() {
       completed: requests.filter((r) => r.status === "تم الإنجاز").length,
     }
     return stats
+  }
+
+  const getAverageRating = () => {
+    const ratedRequests = requests.filter((r) => r.rating && r.rating > 0)
+    if (ratedRequests.length === 0) return 0
+    const totalRating = ratedRequests.reduce((sum, r) => sum + (r.rating || 0), 0)
+    return (totalRating / ratedRequests.length).toFixed(1)
+  }
+
+  if (!user?.isManager) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+            <p className="text-gray-600">You don't have permission to access this page.</p>
+          </div>
+        </div>
+      </AppLayout>
+    )
   }
 
   if (isLoading) {
@@ -155,6 +188,7 @@ export default function ManagerPage() {
   }
 
   const stats = getStatusStats()
+  const averageRating = getAverageRating()
 
   return (
     <AppLayout>
@@ -166,7 +200,7 @@ export default function ManagerPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -222,6 +256,23 @@ export default function ManagerPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Star className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Avg Rating</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-2xl font-bold text-gray-900">{averageRating}</p>
+                      <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Filters */}
@@ -269,9 +320,23 @@ export default function ManagerPage() {
                         <div className="flex items-center gap-3 mb-3">
                           <h3 className="text-lg font-semibold text-gray-900">{request.problemType}</h3>
                           <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
+                          {request.rating && (
+                            <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full">
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              <span className="text-sm font-medium text-yellow-800">{request.rating}</span>
+                            </div>
+                          )}
                         </div>
 
                         <p className="text-gray-600 mb-4 line-clamp-2">{request.description}</p>
+
+                        {/* Show feedback if available */}
+                        {request.feedback && (
+                          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-sm font-medium text-blue-800 mb-1">Customer Feedback:</p>
+                            <p className="text-sm text-blue-700">{request.feedback}</p>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                           <div className="flex items-center gap-1">
@@ -290,6 +355,7 @@ export default function ManagerPage() {
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
+                                <Eye className="w-4 h-4 mr-1" />
                                 View Details
                               </Button>
                             </DialogTrigger>
@@ -325,9 +391,27 @@ export default function ManagerPage() {
                                       />
                                     </div>
                                   )}
+                                  {selectedRequest.rating && (
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">
+                                        Customer Rating & Feedback
+                                      </label>
+                                      <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          {renderStars(selectedRequest.rating)}
+                                          <span className="text-sm font-medium text-yellow-800">
+                                            ({selectedRequest.rating}/5)
+                                          </span>
+                                        </div>
+                                        {selectedRequest.feedback && (
+                                          <p className="text-sm text-gray-700">{selectedRequest.feedback}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                   <div>
                                     <label className="text-sm font-medium text-gray-700">Update Status</label>
-                                    <div className="flex gap-2 mt-2">
+                                    <div className="flex gap-2 mt-2 flex-wrap">
                                       <Button
                                         size="sm"
                                         onClick={() => handleStatusUpdate(selectedRequest.id!, "تمت الموافقة")}
