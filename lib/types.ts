@@ -1,4 +1,6 @@
 export interface User {
+  branchName: any
+  name: string
   uid: string
   email: string
   branchCode: string
