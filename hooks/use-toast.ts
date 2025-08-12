@@ -1,18 +1,24 @@
 "use client"
 
 import * as React from "react"
-import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 5000
+type ToastProps = {
+  title?: string
+  description?: string
+  variant?: "default" | "destructive"
+}
+
+type ToastActionElement = React.ReactElement
 
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
-  variant?: "default" | "destructive"
 }
+
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 1000000
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -132,9 +138,7 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
-
-function toast({ title, description, variant = "default" }: Omit<Toast, "id">) {
+function toast({ ...props }: Omit<ToasterToast, "id">) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -147,9 +151,7 @@ function toast({ title, description, variant = "default" }: Omit<Toast, "id">) {
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      title,
-      description,
-      variant,
+      ...props,
       id,
       open: true,
       onOpenChange: (open) => {

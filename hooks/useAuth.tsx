@@ -24,11 +24,7 @@ export function useAuth() {
   return context
 }
 
-interface AuthProviderProps {
-  children: React.ReactNode
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -36,7 +32,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         try {
+          // Try to get user data from Firestore
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid))
+
           if (userDoc.exists()) {
             const userData = userDoc.data()
             setUser({
@@ -46,20 +44,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
               isManager: userData.isManager || false,
             })
           } else {
-            // Create default user data based on email
-            const isManager = firebaseUser.email?.includes("manager")
+            // Create user data based on email
+            const isManager = firebaseUser.email?.includes("manager") || false
             const branchCode = isManager ? "HQ" : firebaseUser.email?.split("@")[0] || "unknown"
 
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
               branchCode,
-              isManager: isManager || false,
+              isManager,
             })
           }
         } catch (error) {
           console.error("Error fetching user data:", error)
-          setUser(null)
+          // Fallback user creation
+          const isManager = firebaseUser.email?.includes("manager") || false
+          const branchCode = isManager ? "HQ" : firebaseUser.email?.split("@")[0] || "unknown"
+
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email!,
+            branchCode,
+            isManager,
+          })
         }
       } else {
         setUser(null)

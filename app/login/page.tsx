@@ -8,21 +8,20 @@ import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Coffee } from "lucide-react"
+import { Coffee, LogIn } from "lucide-react"
 
 export default function LoginPage() {
-  const { user, login, loading } = useAuth()
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const { login, user, loading } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
-    if (user && !loading) {
+    if (!loading && user) {
       router.replace("/dashboard")
     }
   }, [user, loading, router])
@@ -37,7 +36,7 @@ export default function LoginPage() {
       router.replace("/dashboard")
     } catch (error: any) {
       console.error("Login error:", error)
-      setError(error.message || "Failed to sign in. Please check your credentials.")
+      setError(error.message || "Failed to login. Please check your credentials.")
     } finally {
       setIsLoading(false)
     }
@@ -51,17 +50,20 @@ export default function LoginPage() {
     )
   }
 
+  if (user) {
+    return null
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 to-blue-100 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-sky-300 to-blue-500 rounded-full flex items-center justify-center">
-              <Coffee className="w-8 h-8 text-white" />
-            </div>
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Coffee className="h-8 w-8 text-blue-600" />
+            <h1 className="text-2xl font-bold text-gray-900">Caribou</h1>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Caribou</CardTitle>
-          <CardDescription>Maintenance Management System</CardDescription>
+          <CardTitle>Maintenance System</CardTitle>
+          <p className="text-gray-600">Sign in to your account</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -86,48 +88,36 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  disabled={isLoading}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                disabled={isLoading}
+              />
             </div>
 
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-sky-300 to-blue-500 hover:from-sky-400 hover:to-blue-600"
-              disabled={isLoading}
-            >
-              {isLoading ? "Signing in..." : "Sign In"}
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Signing in...
+                </div>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign In
+                </>
+              )}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-gray-600">
-            <p className="mb-2">Demo Accounts:</p>
-            <div className="space-y-1 text-xs">
-              <p>
-                <strong>Manager:</strong> manager@caribou.com / manager123
-              </p>
-              <p>
-                <strong>Branch:</strong> branch1@caribou.com / branch123
-              </p>
-            </div>
+            <p>Demo Accounts:</p>
+            <p className="mt-1">Manager: manager@caribou.com / manager123</p>
+            <p>Branch: branch1@caribou.com / branch123</p>
           </div>
         </CardContent>
       </Card>

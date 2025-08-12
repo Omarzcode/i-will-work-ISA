@@ -1,0 +1,260 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { useAuth } from "@/hooks/useAuth"
+import type { MaintenanceRequest } from "@/lib/types"
+import { AppLayout } from "@/components/layout/AppLayout"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Search, FileText, Calendar, ImageIcon, Plus, Eye } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+
+export default function MyRequestsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([])
+  const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (user && !user.isManager) {
+      const requestsQuery = query(
+        collection(db, "requests"),
+        where("branchCode", "==", user.branchCode),
+        orderBy("timestamp", "desc"),
+      )
+
+      const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
+        const requestsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as MaintenanceRequest[]
+
+        setRequests(requestsData)
+        setIsLoading(false)
+      })
+
+      return () => unsubscribe()
+    }
+  }, [user])
+
+  useEffect(() => {
+    let filtered = requests
+
+    if (searchQuery.trim() !== "") {
+      filtered = filtered.filter(
+        (request) =>
+          request.problemType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.description.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    }
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((request) => request.status === statusFilter)
+    }
+
+    setFilteredRequests(filtered)
+  }, [searchQuery, statusFilter, requests])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "قيد المراجعة":
+        return "bg-yellow-100 text-yellow-800"
+      case "تمت الموافقة":
+        return "bg-blue-100 text-blue-800"
+      case "قيد التنفيذ":
+        return "bg-orange-100 text-orange-800"
+      case "تم الإنجاز":
+        return "bg-green-100 text-green-800"
+      case "مرفوض":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "قيد المراجعة":
+        return "Under Review"
+      case "تمت الموافقة":
+        return "Approved"
+      case "قيد التنفيذ":
+        return "In Progress"
+      case "تم الإنجاز":
+        return "Completed"
+      case "مرفوض":
+        return "Rejected"
+      default:
+        return status
+    }
+  }
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return ""
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  return (
+    <AppLayout>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">My Requests</h1>
+              <p className="text-gray-600 mt-2">Track your maintenance requests</p>
+            </div>
+            <Button onClick={() => router.push("/create-request")} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" />
+              New Request
+            </Button>
+          </div>
+
+          {/* Filters */}
+          <div className="mb-6 flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="text"
+                placeholder="Search requests..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="قيد المراجعة">Under Review</SelectItem>
+                <SelectItem value="تمت الموافقة">Approved</SelectItem>
+                <SelectItem value="قيد التنفيذ">In Progress</SelectItem>
+                <SelectItem value="تم الإنجاز">Completed</SelectItem>
+                <SelectItem value="مرفوض">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Requests List */}
+          <div className="space-y-4">
+            {filteredRequests.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-4">No requests found</p>
+                  <Button onClick={() => router.push("/create-request")}>Create Your First Request</Button>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredRequests.map((request) => (
+                <Card key={request.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="text-lg font-semibold text-gray-900">{request.problemType}</h3>
+                          <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
+                        </div>
+
+                        <p className="text-gray-600 mb-4 line-clamp-2">{request.description}</p>
+
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {formatDate(request.timestamp)}
+                          </div>
+                          {request.imageUrl && (
+                            <div className="flex items-center gap-1">
+                              <ImageIcon className="w-4 h-4" />
+                              Photo attached
+                            </div>
+                          )}
+                        </div>
+
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
+                              <Eye className="w-4 h-4 mr-1" />
+                              View Details
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Request Details</DialogTitle>
+                            </DialogHeader>
+                            {selectedRequest && (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Problem Type</label>
+                                    <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Status</label>
+                                    <Badge className={getStatusColor(selectedRequest.status)}>
+                                      {getStatusText(selectedRequest.status)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Description</label>
+                                  <p className="text-sm text-gray-900 mt-1">{selectedRequest.description}</p>
+                                </div>
+                                {selectedRequest.imageUrl && (
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Attached Photo</label>
+                                    <img
+                                      src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                      alt="Request attachment"
+                                      className="mt-2 max-w-full h-64 object-cover rounded-lg border"
+                                    />
+                                  </div>
+                                )}
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Submitted</label>
+                                  <p className="text-sm text-gray-900">{formatDate(selectedRequest.timestamp)}</p>
+                                </div>
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  )
+}
