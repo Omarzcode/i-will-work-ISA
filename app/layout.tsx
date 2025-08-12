@@ -9,7 +9,12 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Caribou Maintenance System",
   description: "Maintenance management system for Caribou Coffee",
-    generator: 'v0.dev'
+  generator: "v0.dev",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/caribou-logo.png",
+  },
 }
 
 export default function RootLayout({

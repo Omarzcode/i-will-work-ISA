@@ -1,114 +1,91 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, orderBy, onSnapshot, where, doc, updateDoc } from "firebase/firestore"
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "./useAuth"
-
-export interface Notification {
-  id?: string
-  title: string
-  message: string
-  type: "new_request" | "status_update" | "success" | "warning" | "error" | "system"
-  timestamp: any
-  read: boolean
-  requestId?: string
-  branchCode?: string
-  isForManager: boolean
-}
+import type { Notification } from "@/lib/types"
 
 export function useNotifications() {
-  const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const { user } = useAuth()
 
   useEffect(() => {
     if (!user) {
       setNotifications([])
-      setLoading(false)
+      setUnreadCount(0)
       return
     }
 
-    let notificationsQuery
+    const notificationsRef = collection(db, "notifications")
+    let q
 
-    if (user.isManager) {
-      // Managers see notifications for new requests and general notifications
-      notificationsQuery = query(
-        collection(db, "notifications"),
-        where("isForManager", "==", true),
-        orderBy("timestamp", "desc"),
-      )
+    if (user.role === "manager") {
+      // Managers see all notifications or manager-specific ones
+      q = query(notificationsRef, where("recipientRole", "in", ["manager", "all"]), orderBy("createdAt", "desc"))
     } else {
-      // Branch users see notifications for their branch
-      notificationsQuery = query(
-        collection(db, "notifications"),
-        where("branchCode", "==", user.branchCode),
-        where("isForManager", "==", false),
-        orderBy("timestamp", "desc"),
-      )
+      // Branch users see their branch-specific notifications
+      q = query(notificationsRef, where("recipientId", "==", user.uid), orderBy("createdAt", "desc"))
     }
 
-    const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
-      const notificationsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Notification[]
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notificationsList: Notification[] = []
+      let unreadCounter = 0
 
-      // Show browser notification for new unread notifications
-      const previousNotifications = notifications
-      const newNotifications = notificationsData.filter(
-        (newNotif) => !newNotif.read && !previousNotifications.some((prevNotif) => prevNotif.id === newNotif.id),
-      )
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        const notification: Notification = {
+          id: doc.id,
+          title: data.title,
+          message: data.message,
+          type: data.type,
+          read: data.read || false,
+          createdAt: data.createdAt,
+          recipientId: data.recipientId,
+          recipientRole: data.recipientRole,
+          requestId: data.requestId,
+          branchCode: data.branchCode,
+        }
 
-      // Show browser notifications for new notifications
-      newNotifications.forEach((notification) => {
-        showBrowserNotification(notification)
+        notificationsList.push(notification)
+        if (!notification.read) {
+          unreadCounter++
+        }
       })
 
-      setNotifications(notificationsData)
-      setLoading(false)
+      setNotifications(notificationsList.slice(0, 80)) // Limit to 80 notifications
+      setUnreadCount(unreadCounter)
+
+      // Show browser notification for new unread notifications
+      if (unreadCounter > 0 && "Notification" in window && Notification.permission === "granted") {
+        const latestUnread = notificationsList.find((n) => !n.read)
+        if (latestUnread) {
+          const browserNotification = new Notification(latestUnread.title, {
+            body: latestUnread.message,
+            icon: "/caribou-logo.png",
+            tag: latestUnread.id,
+          })
+
+          browserNotification.onclick = () => {
+            window.focus()
+            browserNotification.close()
+          }
+
+          setTimeout(() => {
+            browserNotification.close()
+          }, 5000)
+        }
+      }
     })
 
     return () => unsubscribe()
-  }, [user]) // Removed notifications.length from dependency
-
-  const showBrowserNotification = (notification: Notification) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      try {
-        const browserNotification = new Notification(notification.title, {
-          body: notification.message,
-          icon: "/favicon.ico",
-          tag: notification.id,
-          badge: "/favicon.ico",
-          requireInteraction: false,
-          silent: false,
-        })
-
-        // Auto close after 5 seconds
-        setTimeout(() => {
-          browserNotification.close()
-        }, 5000)
-
-        // Handle click
-        browserNotification.onclick = () => {
-          window.focus()
-          browserNotification.close()
-          // Mark as read when clicked
-          if (notification.id) {
-            markAsRead(notification.id)
-          }
-        }
-      } catch (error) {
-        console.log("Browser notification failed:", error)
-      }
-    }
-  }
+  }, [user])
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await updateDoc(doc(db, "notifications", notificationId), {
-        read: true,
-      })
+      const notificationRef = doc(db, "notifications", notificationId)
+      await updateDoc(notificationRef, { read: true })
     } catch (error) {
       console.error("Error marking notification as read:", error)
     }
@@ -116,17 +93,24 @@ export function useNotifications() {
 
   const markAllAsRead = async () => {
     try {
+      const batch = writeBatch(db)
       const unreadNotifications = notifications.filter((n) => !n.read)
-      const promises = unreadNotifications.map((notification) =>
-        updateDoc(doc(db, "notifications", notification.id!), { read: true }),
-      )
-      await Promise.all(promises)
+
+      unreadNotifications.forEach((notification) => {
+        const notificationRef = doc(db, "notifications", notification.id)
+        batch.update(notificationRef, { read: true })
+      })
+
+      await batch.commit()
     } catch (error) {
       console.error("Error marking all notifications as read:", error)
     }
   }
 
-  const unreadCount = notifications.filter((n) => !n.read).length
-
-  return { notifications, unreadCount, loading, markAsRead, markAllAsRead }
+  return {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+  }
 }

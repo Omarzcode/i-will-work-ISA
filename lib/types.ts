@@ -1,54 +1,66 @@
-export interface MaintenanceRequest {
-  id?: string
-  branchCode: string
-  problemType: string
-  description: string
-  status: string
-  timestamp: any
-  imageUrl?: string
-  userId?: string
-  rating?: number
-  feedback?: string
-  completionMessage?: string
-}
-
 export interface User {
   uid: string
-  branchCode: string
-  isManager: boolean
-  email?: string
+  email: string
+  role: "manager" | "branch"
+  branchCode?: string
   displayName?: string
 }
 
-export interface Notification {
-  id?: string
+export interface MaintenanceRequest {
+  id: string
   title: string
-  message: string
-  type: "new_request" | "status_update" | "success" | "warning" | "error" | "system"
-  timestamp: any
-  read: boolean
-  requestId?: string
-  branchCode?: string
-  isForManager: boolean
+  description: string
+  category: "plumbing" | "electrical" | "hvac" | "equipment" | "cleaning" | "other"
+  priority: "low" | "medium" | "high" | "urgent"
+  status: "pending" | "approved" | "in_progress" | "completed" | "rejected"
+  branchCode: string
+  branchName: string
+  createdBy: string
+  createdAt: any
+  updatedAt: any
+  assignedTo?: string
+  estimatedCost?: number
+  actualCost?: number
+  completedAt?: any
+  images?: string[]
+  notes?: string
+  rating?: number
+  feedback?: string
 }
 
-export const PROBLEM_TYPES = [
-  "Air Conditioning",
-  "Electrical",
-  "Plumbing",
-  "Heating",
-  "Lighting",
-  "Security System",
-  "Internet/Network",
-  "Furniture",
-  "Cleaning",
-  "Other",
-] as const
+export interface Notification {
+  id: string
+  title: string
+  message: string
+  type: "new_request" | "status_update" | "assignment" | "completion" | "error" | "success" | "warning" | "info"
+  read: boolean
+  createdAt: any
+  recipientId?: string
+  recipientRole?: "manager" | "branch" | "all"
+  requestId?: string
+  branchCode?: string
+}
 
-export const STATUS_OPTIONS = [
-  "قيد المراجعة", // Under Review
-  "تمت الموافقة", // Approved
-  "قيد التنفيذ", // In Progress
-  "تم الإنجاز", // Completed
-  "مرفوض", // Rejected
-] as const
+export interface Branch {
+  code: string
+  name: string
+  address: string
+  manager: string
+  phone: string
+}
+
+export interface Analytics {
+  totalRequests: number
+  pendingRequests: number
+  completedRequests: number
+  averageCompletionTime: number
+  totalCost: number
+  requestsByCategory: Record<string, number>
+  requestsByPriority: Record<string, number>
+  requestsByStatus: Record<string, number>
+  monthlyTrends: Array<{
+    month: string
+    requests: number
+    cost: number
+  }>
+}

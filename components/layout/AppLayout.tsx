@@ -1,135 +1,49 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/useAuth"
 import { Sidebar } from "./Sidebar"
-import { MobileNav } from "./MobileNav"
 import { NotificationBell } from "./NotificationBell"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { LogOut, Menu } from "lucide-react"
+import Image from "next/image"
 
 interface AppLayoutProps {
   children: React.ReactNode
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, loading, logout } = useAuth()
-  const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login")
-    }
-  }, [user, loading, router])
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-      setLogoutDialogOpen(false)
-      router.replace("/login")
-    } catch (error) {
-      console.error("Logout error:", error)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
-      <div className="lg:hidden">
-        <div className="flex items-center justify-between p-4 bg-white border-b">
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-            <Menu className="h-6 w-6" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-        <MobileNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </div>
+      <Sidebar />
 
-      {/* Desktop Layout */}
-      <div className="hidden lg:flex">
-        {/* Sidebar */}
-        <div className="w-64 fixed inset-y-0 left-0 z-50">
-          <Sidebar />
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 ml-64">
-          {/* Top Bar */}
-          <div className="bg-white border-b px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {user.isManager ? "Manager Dashboard" : `Branch ${user.branchCode}`}
-                </h2>
-                <p className="text-sm text-gray-600">{user.email}</p>
+      {/* Main content */}
+      <div className="lg:pl-72">
+        {/* Top bar */}
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+          <div className="flex flex-1 items-center justify-between">
+            {/* Mobile menu button and logo */}
+            <div className="flex items-center gap-x-4 lg:gap-x-6">
+              <div className="lg:hidden">
+                <Sidebar />
               </div>
-              <div className="flex items-center gap-4">
-                <NotificationBell />
-                <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)}>
-                  <LogOut className="h-5 w-5" />
-                </Button>
+              <div className="lg:hidden flex items-center space-x-2">
+                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                  <Image src="/caribou-logo.png" alt="Caribou Coffee" width={20} height={20} className="rounded-full" />
+                </div>
+                <span className="text-lg font-semibold text-gray-900">Caribou</span>
               </div>
             </div>
+
+            {/* Right side */}
+            <div className="flex items-center gap-x-4 lg:gap-x-6">
+              <NotificationBell />
+            </div>
           </div>
-
-          {/* Page Content */}
-          <main className="flex-1">{children}</main>
         </div>
-      </div>
 
-      {/* Mobile Content */}
-      <div className="lg:hidden">
-        <main className="flex-1">{children}</main>
+        {/* Page content */}
+        <main className="py-6">
+          <div className="px-4 sm:px-6 lg:px-8">{children}</div>
+        </main>
       </div>
-
-      {/* Logout Confirmation Dialog */}
-      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Logout</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to logout? You will need to sign in again to access your account.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLogoutDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleLogout} className="bg-red-600 hover:bg-red-700">
-              Logout
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
