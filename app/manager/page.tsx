@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle, Star, Eye, Building } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -25,6 +26,7 @@ export default function ManagerPage() {
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const [completionMessage, setCompletionMessage] = useState("")
 
   useEffect(() => {
     if (user?.isManager) {
@@ -64,16 +66,20 @@ export default function ManagerPage() {
     setFilteredRequests(filtered)
   }, [searchQuery, statusFilter, requests])
 
-  const handleStatusUpdate = async (requestId: string, newStatus: string) => {
+  const handleStatusUpdate = async (requestId: string, newStatus: string, message?: string) => {
     setUpdatingStatus(requestId)
     try {
-      await updateDoc(doc(db, "requests", requestId), {
-        status: newStatus,
-      })
+      const updateData: any = { status: newStatus }
+      if (message && newStatus === "تم الإنجاز") {
+        updateData.completionMessage = message
+      }
+
+      await updateDoc(doc(db, "requests", requestId), updateData)
       toast({
         title: "Status Updated",
         description: "Request status has been updated successfully.",
       })
+      setCompletionMessage("")
     } catch (error) {
       console.error("Error updating status:", error)
       toast({
@@ -117,6 +123,19 @@ export default function ManagerPage() {
         return "Rejected"
       default:
         return status
+    }
+  }
+
+  const getNextStatus = (currentStatus: string) => {
+    switch (currentStatus) {
+      case "قيد المراجعة":
+        return { status: "تمت الموافقة", text: "Approve", color: "bg-blue-600 hover:bg-blue-700" }
+      case "تمت الموافقة":
+        return { status: "قيد التنفيذ", text: "Start Work", color: "bg-orange-600 hover:bg-orange-700" }
+      case "قيد التنفيذ":
+        return { status: "تم الإنجاز", text: "Mark Complete", color: "bg-green-600 hover:bg-green-700" }
+      default:
+        return null
     }
   }
 
@@ -310,164 +329,214 @@ export default function ManagerPage() {
                 </CardContent>
               </Card>
             ) : (
-              filteredRequests.map((request) => (
-                <Card key={request.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="flex items-center gap-2 text-blue-600">
-                            <Building className="w-4 h-4" />
-                            <span className="font-medium">{request.branchCode}</span>
+              filteredRequests.map((request) => {
+                const nextStatus = getNextStatus(request.status)
+                return (
+                  <Card key={request.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="flex items-center gap-2 text-blue-600">
+                              <Building className="w-4 h-4" />
+                              <span className="font-medium">{request.branchCode}</span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">{request.problemType}</h3>
+                            <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
+                            {request.rating && (
+                              <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full">
+                                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                <span className="text-sm font-medium text-yellow-800">{request.rating}/5</span>
+                              </div>
+                            )}
                           </div>
-                          <h3 className="text-lg font-semibold text-gray-900">{request.problemType}</h3>
-                          <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
-                          {request.rating && (
-                            <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full">
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <span className="text-sm font-medium text-yellow-800">{request.rating}/5</span>
+
+                          <p className="text-gray-600 mb-4 line-clamp-2">{request.description}</p>
+
+                          {/* Show feedback if available */}
+                          {request.feedback && (
+                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <p className="text-sm font-medium text-blue-800 mb-1">Customer Feedback:</p>
+                              <p className="text-sm text-blue-700">{request.feedback}</p>
                             </div>
                           )}
-                        </div>
 
-                        <p className="text-gray-600 mb-4 line-clamp-2">{request.description}</p>
+                          {/* Show completion message if available */}
+                          {request.completionMessage && (
+                            <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                              <p className="text-sm font-medium text-green-800 mb-1">Completion Message:</p>
+                              <p className="text-sm text-green-700">{request.completionMessage}</p>
+                            </div>
+                          )}
 
-                        {/* Show feedback if available */}
-                        {request.feedback && (
-                          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <p className="text-sm font-medium text-blue-800 mb-1">Customer Feedback:</p>
-                            <p className="text-sm text-blue-700">{request.feedback}</p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {formatDate(request.timestamp)}
-                          </div>
-                          {request.imageUrl && (
+                          <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                             <div className="flex items-center gap-1">
-                              <ImageIcon className="w-4 h-4" />
-                              Photo attached
+                              <Calendar className="w-4 h-4" />
+                              {formatDate(request.timestamp)}
                             </div>
-                          )}
-                        </div>
+                            {request.imageUrl && (
+                              <div className="flex items-center gap-1">
+                                <ImageIcon className="w-4 h-4" />
+                                Photo attached
+                              </div>
+                            )}
+                          </div>
 
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
-                                <Eye className="w-4 h-4 mr-1" />
-                                View Details
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Request Details & Status Update</DialogTitle>
-                              </DialogHeader>
-                              {selectedRequest && (
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-700">Branch Code</label>
-                                      <p className="text-sm text-gray-900">{selectedRequest.branchCode}</p>
-                                    </div>
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-700">Problem Type</label>
-                                      <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-700">Current Status</label>
-                                    <Badge className={getStatusColor(selectedRequest.status)}>
-                                      {getStatusText(selectedRequest.status)}
-                                    </Badge>
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-700">Description</label>
-                                    <p className="text-sm text-gray-900 mt-1">{selectedRequest.description}</p>
-                                  </div>
-                                  {selectedRequest.imageUrl && (
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-700">Attached Photo</label>
-                                      <img
-                                        src={selectedRequest.imageUrl || "/placeholder.svg"}
-                                        alt="Request attachment"
-                                        className="mt-2 max-w-full h-64 object-cover rounded-lg border"
-                                      />
-                                    </div>
-                                  )}
-                                  {selectedRequest.rating && (
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-700">
-                                        Customer Rating & Feedback
-                                      </label>
-                                      <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          {renderStars(selectedRequest.rating)}
-                                          <span className="text-sm font-medium text-yellow-800">
-                                            ({selectedRequest.rating}/5)
-                                          </span>
-                                        </div>
-                                        {selectedRequest.feedback && (
-                                          <p className="text-sm text-gray-700">{selectedRequest.feedback}</p>
-                                        )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View Details
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>Request Details & Status Update</DialogTitle>
+                                </DialogHeader>
+                                {selectedRequest && (
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <label className="text-sm font-medium text-gray-700">Branch Code</label>
+                                        <p className="text-sm text-gray-900">{selectedRequest.branchCode}</p>
+                                      </div>
+                                      <div>
+                                        <label className="text-sm font-medium text-gray-700">Problem Type</label>
+                                        <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
                                       </div>
                                     </div>
-                                  )}
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-700">Update Status</label>
-                                    <div className="flex gap-2 mt-2 flex-wrap">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "تمت الموافقة")}
-                                        disabled={updatingStatus === selectedRequest.id}
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                      >
-                                        Approve
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "قيد التنفيذ")}
-                                        disabled={updatingStatus === selectedRequest.id}
-                                        className="bg-orange-600 hover:bg-orange-700"
-                                      >
-                                        Start Work
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "تم الإنجاز")}
-                                        disabled={updatingStatus === selectedRequest.id}
-                                        className="bg-green-600 hover:bg-green-700"
-                                      >
-                                        Complete
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="destructive"
-                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "مرفوض")}
-                                        disabled={updatingStatus === selectedRequest.id}
-                                      >
-                                        Reject
-                                      </Button>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Current Status</label>
+                                      <Badge className={getStatusColor(selectedRequest.status)}>
+                                        {getStatusText(selectedRequest.status)}
+                                      </Badge>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Description</label>
+                                      <p className="text-sm text-gray-900 mt-1">{selectedRequest.description}</p>
+                                    </div>
+                                    {selectedRequest.imageUrl && (
+                                      <div>
+                                        <label className="text-sm font-medium text-gray-700">Attached Photo</label>
+                                        <img
+                                          src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                          alt="Request attachment"
+                                          className="mt-2 max-w-full h-64 object-cover rounded-lg border"
+                                        />
+                                      </div>
+                                    )}
+                                    {selectedRequest.rating && (
+                                      <div>
+                                        <label className="text-sm font-medium text-gray-700">
+                                          Customer Rating & Feedback
+                                        </label>
+                                        <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            {renderStars(selectedRequest.rating)}
+                                            <span className="text-sm font-medium text-yellow-800">
+                                              ({selectedRequest.rating}/5)
+                                            </span>
+                                          </div>
+                                          {selectedRequest.feedback && (
+                                            <p className="text-sm text-gray-700">{selectedRequest.feedback}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {selectedRequest.completionMessage && (
+                                      <div>
+                                        <label className="text-sm font-medium text-gray-700">Completion Message</label>
+                                        <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                                          <p className="text-sm text-green-700">{selectedRequest.completionMessage}</p>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Status Update Section */}
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Update Status</label>
+                                      {selectedRequest.status === "تم الإنجاز" ? (
+                                        <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                                          <p className="text-sm text-green-700 font-medium">✅ Request Completed</p>
+                                          <p className="text-sm text-green-600">
+                                            This request has been marked as completed.
+                                          </p>
+                                        </div>
+                                      ) : selectedRequest.status === "مرفوض" ? (
+                                        <div className="mt-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                                          <p className="text-sm text-red-700 font-medium">❌ Request Rejected</p>
+                                          <p className="text-sm text-red-600">This request has been rejected.</p>
+                                        </div>
+                                      ) : (
+                                        <div className="mt-2 space-y-3">
+                                          {getNextStatus(selectedRequest.status) && (
+                                            <>
+                                              {selectedRequest.status === "قيد التنفيذ" && (
+                                                <div>
+                                                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                                                    Completion Message (Optional)
+                                                  </label>
+                                                  <Textarea
+                                                    placeholder="Add a message about the completion..."
+                                                    value={completionMessage}
+                                                    onChange={(e) => setCompletionMessage(e.target.value)}
+                                                    rows={3}
+                                                  />
+                                                </div>
+                                              )}
+                                              <Button
+                                                size="sm"
+                                                onClick={() => {
+                                                  const nextStatusData = getNextStatus(selectedRequest.status)!
+                                                  handleStatusUpdate(
+                                                    selectedRequest.id!,
+                                                    nextStatusData.status,
+                                                    selectedRequest.status === "قيد التنفيذ"
+                                                      ? completionMessage
+                                                      : undefined,
+                                                  )
+                                                }}
+                                                disabled={updatingStatus === selectedRequest.id}
+                                                className={getNextStatus(selectedRequest.status)!.color}
+                                              >
+                                                {updatingStatus === selectedRequest.id
+                                                  ? "Updating..."
+                                                  : getNextStatus(selectedRequest.status)!.text}
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                onClick={() => handleStatusUpdate(selectedRequest.id!, "مرفوض")}
+                                                disabled={updatingStatus === selectedRequest.id}
+                                                className="ml-2"
+                                              >
+                                                Reject
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              )}
-                            </DialogContent>
-                          </Dialog>
+                                )}
+                              </DialogContent>
+                            </Dialog>
 
-                          {/* Quick Status Update Buttons */}
-                          {request.status === "قيد المراجعة" && (
-                            <>
+                            {/* Quick Status Update Button */}
+                            {nextStatus && (
                               <Button
                                 size="sm"
-                                onClick={() => handleStatusUpdate(request.id!, "تمت الموافقة")}
+                                onClick={() => handleStatusUpdate(request.id!, nextStatus.status)}
                                 disabled={updatingStatus === request.id}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className={nextStatus.color}
                               >
-                                Approve
+                                {updatingStatus === request.id ? "Updating..." : nextStatus.text}
                               </Button>
+                            )}
+
+                            {/* Quick Reject Button (only for non-completed/rejected requests) */}
+                            {request.status !== "تم الإنجاز" && request.status !== "مرفوض" && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -476,36 +545,14 @@ export default function ManagerPage() {
                               >
                                 Reject
                               </Button>
-                            </>
-                          )}
-
-                          {request.status === "تمت الموافقة" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleStatusUpdate(request.id!, "قيد التنفيذ")}
-                              disabled={updatingStatus === request.id}
-                              className="bg-orange-600 hover:bg-orange-700"
-                            >
-                              Start Work
-                            </Button>
-                          )}
-
-                          {request.status === "قيد التنفيذ" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleStatusUpdate(request.id!, "تم الإنجاز")}
-                              disabled={updatingStatus === request.id}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Mark Complete
-                            </Button>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                )
+              })
             )}
           </div>
         </div>

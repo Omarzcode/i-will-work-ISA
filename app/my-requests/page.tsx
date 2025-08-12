@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore"
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,28 +24,28 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, FileText, Calendar, ImageIcon, Trash2, Star } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { Search, Calendar, ImageIcon, Star, Trash2, MessageSquare } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function MyRequestsPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [cancellingId, setCancellingId] = useState<string | null>(null)
-  const [ratingRequest, setRatingRequest] = useState<MaintenanceRequest | null>(null)
   const [rating, setRating] = useState(0)
   const [feedback, setFeedback] = useState("")
-  const [submittingRating, setSubmittingRating] = useState(false)
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false)
+  const [cancellingRequest, setCancellingRequest] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user && !user.isManager) {
+    if (user) {
       const requestsQuery = query(
         collection(db, "requests"),
-        where("branchCode", "==", user.branchCode),
+        where("userId", "==", user.uid),
         orderBy("timestamp", "desc"),
       )
 
@@ -80,42 +81,26 @@ export default function MyRequestsPage() {
     setFilteredRequests(filtered)
   }, [searchQuery, statusFilter, requests])
 
-  const handleCancelRequest = async (requestId: string) => {
-    setCancellingId(requestId)
-    try {
-      await deleteDoc(doc(db, "requests", requestId))
+  const handleRatingSubmit = async (requestId: string) => {
+    if (rating === 0) {
       toast({
-        title: "Request Cancelled",
-        description: "Your maintenance request has been cancelled and removed.",
-      })
-    } catch (error) {
-      console.error("Error cancelling request:", error)
-      toast({
-        title: "Error",
-        description: "Failed to cancel request. Please try again.",
+        title: "Rating Required",
+        description: "Please select a rating before submitting.",
         variant: "destructive",
       })
-    } finally {
-      setCancellingId(null)
+      return
     }
-  }
 
-  const handleRatingSubmit = async () => {
-    if (!ratingRequest || rating === 0) return
-
-    setSubmittingRating(true)
+    setIsSubmittingRating(true)
     try {
-      await updateDoc(doc(db, "requests", ratingRequest.id!), {
+      await updateDoc(doc(db, "requests", requestId), {
         rating: rating,
         feedback: feedback.trim() || null,
       })
-
       toast({
         title: "Rating Submitted",
         description: "Thank you for your feedback!",
       })
-
-      setRatingRequest(null)
       setRating(0)
       setFeedback("")
     } catch (error) {
@@ -126,14 +111,28 @@ export default function MyRequestsPage() {
         variant: "destructive",
       })
     } finally {
-      setSubmittingRating(false)
+      setIsSubmittingRating(false)
     }
   }
 
-  const openRatingDialog = (request: MaintenanceRequest) => {
-    setRatingRequest(request)
-    setRating(request.rating || 0)
-    setFeedback(request.feedback || "")
+  const handleCancelRequest = async (requestId: string) => {
+    setCancellingRequest(requestId)
+    try {
+      await deleteDoc(doc(db, "requests", requestId))
+      toast({
+        title: "Request Cancelled",
+        description: "Your request has been cancelled and removed.",
+      })
+    } catch (error) {
+      console.error("Error cancelling request:", error)
+      toast({
+        title: "Error",
+        description: "Failed to cancel request. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setCancellingRequest(null)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -190,7 +189,7 @@ export default function MyRequestsPage() {
     return status === "تم الإنجاز"
   }
 
-  const renderStars = (currentRating: number, interactive = false) => {
+  const renderStars = (currentRating: number, interactive = false, onStarClick?: (rating: number) => void) => {
     return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -199,23 +198,10 @@ export default function MyRequestsPage() {
             className={`w-5 h-5 cursor-pointer transition-colors ${
               star <= currentRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-300"
             }`}
-            onClick={interactive ? () => setRating(star) : undefined}
+            onClick={() => interactive && onStarClick && onStarClick(star)}
           />
         ))}
       </div>
-    )
-  }
-
-  if (user?.isManager) {
-    return (
-      <AppLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-gray-600">Managers should use the Manager Dashboard instead.</p>
-          </div>
-        </div>
-      </AppLayout>
     )
   }
 
@@ -235,7 +221,7 @@ export default function MyRequestsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">My Requests</h1>
-            <p className="text-gray-600 mt-2">Track and manage your maintenance requests</p>
+            <p className="text-gray-600 mt-2">Track your maintenance requests</p>
           </div>
 
           {/* Filters */}
@@ -270,7 +256,7 @@ export default function MyRequestsPage() {
             {filteredRequests.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">No requests found</p>
                 </CardContent>
               </Card>
@@ -285,13 +271,21 @@ export default function MyRequestsPage() {
                           <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
                           {request.rating && (
                             <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full">
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <span className="text-sm font-medium text-green-800">Rated {request.rating}/5</span>
+                              <Star className="w-4 h-4 fill-green-500 text-green-500" />
+                              <span className="text-sm font-medium text-green-700">Rated {request.rating}/5</span>
                             </div>
                           )}
                         </div>
 
                         <p className="text-gray-600 mb-4 line-clamp-2">{request.description}</p>
+
+                        {/* Show completion message if available */}
+                        {request.completionMessage && (
+                          <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <p className="text-sm font-medium text-green-800 mb-1">Completion Message:</p>
+                            <p className="text-sm text-green-700">{request.completionMessage}</p>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                           <div className="flex items-center gap-1">
@@ -306,7 +300,7 @@ export default function MyRequestsPage() {
                           )}
                         </div>
 
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {/* Cancel Request Button */}
                           {canCancelRequest(request.status) && (
                             <AlertDialog>
@@ -320,18 +314,18 @@ export default function MyRequestsPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Cancel Request</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to cancel this maintenance request? This action cannot be
-                                    undone and the request will be permanently removed.
+                                    Are you sure you want to cancel this request? This action cannot be undone and the
+                                    request will be permanently removed.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Keep Request</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleCancelRequest(request.id!)}
-                                    disabled={cancellingId === request.id}
+                                    disabled={cancellingRequest === request.id}
                                     className="bg-red-600 hover:bg-red-700"
                                   >
-                                    {cancellingId === request.id ? "Cancelling..." : "Cancel Request"}
+                                    {cancellingRequest === request.id ? "Cancelling..." : "Cancel Request"}
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -340,30 +334,35 @@ export default function MyRequestsPage() {
 
                           {/* Rate Service Button */}
                           {canRateRequest(request.status) && (
-                            <Dialog
-                              open={ratingRequest?.id === request.id}
-                              onOpenChange={(open) => !open && setRatingRequest(null)}
-                            >
+                            <Dialog>
                               <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" onClick={() => openRatingDialog(request)}>
+                                <Button
+                                  size="sm"
+                                  variant={request.rating ? "outline" : "default"}
+                                  onClick={() => {
+                                    setSelectedRequest(request)
+                                    setRating(request.rating || 0)
+                                    setFeedback(request.feedback || "")
+                                  }}
+                                >
                                   <Star className="w-4 h-4 mr-1" />
                                   {request.rating ? "Update Rating" : "Rate Service"}
                                 </Button>
                               </DialogTrigger>
                               <DialogContent>
                                 <DialogHeader>
-                                  <DialogTitle>Rate Service Quality</DialogTitle>
+                                  <DialogTitle>Rate Your Service Experience</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div>
                                     <label className="text-sm font-medium text-gray-700 mb-2 block">
                                       How would you rate the service?
                                     </label>
-                                    {renderStars(rating, true)}
+                                    {renderStars(rating, true, setRating)}
                                   </div>
                                   <div>
                                     <label className="text-sm font-medium text-gray-700 mb-2 block">
-                                      Additional Comments (Optional)
+                                      Additional feedback (optional)
                                     </label>
                                     <Textarea
                                       placeholder="Share your experience..."
@@ -373,11 +372,11 @@ export default function MyRequestsPage() {
                                     />
                                   </div>
                                   <div className="flex gap-2 justify-end">
-                                    <Button variant="outline" onClick={() => setRatingRequest(null)}>
-                                      Cancel
-                                    </Button>
-                                    <Button onClick={handleRatingSubmit} disabled={rating === 0 || submittingRating}>
-                                      {submittingRating ? "Submitting..." : "Submit Rating"}
+                                    <Button
+                                      onClick={() => handleRatingSubmit(selectedRequest?.id!)}
+                                      disabled={isSubmittingRating || rating === 0}
+                                    >
+                                      {isSubmittingRating ? "Submitting..." : "Submit Rating"}
                                     </Button>
                                   </div>
                                 </div>
