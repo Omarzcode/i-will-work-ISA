@@ -7,14 +7,17 @@ import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart3, Database, TrendingUp, Clock, CheckCircle, AlertTriangle, Building } from "lucide-react"
-import { CleanupDashboard } from "@/components/ui/cleanup-dashboard"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
+import { BarChart3, TrendingUp, Clock, CheckCircle, AlertTriangle, Building, Trash2, RefreshCw } from "lucide-react"
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isCleaningUp, setIsCleaningUp] = useState(false)
 
   useEffect(() => {
     if (user?.isManager) {
@@ -33,6 +36,36 @@ export default function AnalyticsPage() {
       return () => unsubscribe()
     }
   }, [user])
+
+  const handleCleanup = async () => {
+    setIsCleaningUp(true)
+    try {
+      const response = await fetch("/api/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "requests", daysOld: 7 }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Cleanup Successful! 🧹",
+          description: `Deleted ${result.deletedCount} old completed requests`,
+        })
+      } else {
+        throw new Error(result.message || "Cleanup failed")
+      }
+    } catch (error) {
+      toast({
+        title: "Cleanup Failed",
+        description: `Error: ${error}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsCleaningUp(false)
+    }
+  }
 
   if (!user?.isManager) {
     return (
@@ -63,6 +96,18 @@ export default function AnalyticsPage() {
   const inProgressRequests = requests.filter((r) => r.status === "قيد التنفيذ").length
   const completedRequests = requests.filter((r) => r.status === "تم الإنجاز").length
 
+  // Calculate old completed requests (7+ days)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const oldCompletedRequests = requests.filter((r) => {
+    if (r.status !== "تم الإنجاز") return false
+    const timestamp = r.timestamp
+    if (!timestamp) return false
+    const requestDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return requestDate < sevenDaysAgo
+  }).length
+
   // Branch analytics
   const branchStats = requests.reduce(
     (acc, request) => {
@@ -92,166 +137,151 @@ export default function AnalyticsPage() {
     <AppLayout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
         <div className="px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
-          <div className="mb-6">
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Analytics & Management</h1>
-            <p className="text-gray-600">System analytics and storage management</p>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+              <p className="text-gray-600">Overview of maintenance requests across all branches</p>
+            </div>
+
+            {/* Cleanup Button */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              {oldCompletedRequests > 0 && (
+                <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+                  {oldCompletedRequests} old requests (7+ days)
+                </Badge>
+              )}
+              <Button
+                onClick={handleCleanup}
+                disabled={isCleaningUp || oldCompletedRequests === 0}
+                className="bg-orange-600 hover:bg-orange-700 text-white rounded-2xl px-6"
+              >
+                {isCleaningUp ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                Clean Old Requests
+              </Button>
+            </div>
           </div>
 
-          <Tabs defaultValue="storage" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-white/80 backdrop-blur-sm">
-              <TabsTrigger value="storage" className="rounded-2xl flex items-center gap-2">
-                <Database className="w-4 h-4" />
-                Storage
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="rounded-2xl flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Analytics
-              </TabsTrigger>
-              <TabsTrigger value="trends" className="rounded-2xl flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Trends
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="storage">
-              <CleanupDashboard />
-            </TabsContent>
-
-            <TabsContent value="analytics">
-              <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle>Request Analytics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">Total Requests</p>
-                            <p className="text-2xl font-bold text-blue-600">{totalRequests}</p>
-                          </div>
-                          <BarChart3 className="w-8 h-8 text-blue-600" />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">Pending</p>
-                            <p className="text-2xl font-bold text-yellow-600">{pendingRequests}</p>
-                          </div>
-                          <Clock className="w-8 h-8 text-yellow-600" />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">In Progress</p>
-                            <p className="text-2xl font-bold text-orange-600">{inProgressRequests}</p>
-                          </div>
-                          <AlertTriangle className="w-8 h-8 text-orange-600" />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-600">Completed</p>
-                            <p className="text-2xl font-bold text-green-600">{completedRequests}</p>
-                          </div>
-                          <CheckCircle className="w-8 h-8 text-green-600" />
-                        </div>
-                      </CardContent>
-                    </Card>
+          {/* Overview Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
+            <Card className="rounded-2xl lg:rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-4 lg:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                    <p className="text-xl lg:text-2xl font-bold text-blue-600">{totalRequests}</p>
                   </div>
+                  <BarChart3 className="w-6 h-6 lg:w-8 lg:h-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Branch Performance */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Building className="w-5 h-5" />
-                          Branch Performance
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {Object.entries(branchStats).map(([branch, stats]) => (
-                            <div key={branch} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div>
-                                <p className="font-medium text-gray-900">{branch}</p>
-                                <p className="text-sm text-gray-600">
-                                  {stats.completed}/{stats.total} completed
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm font-medium text-green-600">
-                                  {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
-                                </p>
-                                <p className="text-xs text-gray-500">{stats.pending} pending</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Problem Types */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5" />
-                          Common Issues
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {Object.entries(problemTypeStats)
-                            .sort(([, a], [, b]) => b - a)
-                            .slice(0, 8)
-                            .map(([type, count]) => (
-                              <div key={type} className="flex items-center justify-between">
-                                <p className="text-sm text-gray-900">{type}</p>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-20 bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className="bg-blue-600 h-2 rounded-full"
-                                      style={{
-                                        width: `${(count / Math.max(...Object.values(problemTypeStats))) * 100}%`,
-                                      }}
-                                    />
-                                  </div>
-                                  <span className="text-sm font-medium text-gray-600 w-8 text-right">{count}</span>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </CardContent>
-                    </Card>
+            <Card className="rounded-2xl lg:rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-4 lg:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-xl lg:text-2xl font-bold text-yellow-600">{pendingRequests}</p>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  <Clock className="w-6 h-6 lg:w-8 lg:h-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-            <TabsContent value="trends">
-              <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle>Trend Analysis</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600">Trend analysis coming soon...</p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+            <Card className="rounded-2xl lg:rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-4 lg:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">In Progress</p>
+                    <p className="text-xl lg:text-2xl font-bold text-orange-600">{inProgressRequests}</p>
+                  </div>
+                  <AlertTriangle className="w-6 h-6 lg:w-8 lg:h-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl lg:rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-4 lg:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-xl lg:text-2xl font-bold text-green-600">{completedRequests}</p>
+                  </div>
+                  <CheckCircle className="w-6 h-6 lg:w-8 lg:h-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            {/* Branch Performance */}
+            <Card className="rounded-2xl lg:rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+              <CardHeader className="p-4 lg:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
+                  <Building className="w-5 h-5" />
+                  Branch Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 lg:p-6 pt-0">
+                <div className="space-y-3 lg:space-y-4">
+                  {Object.entries(branchStats)
+                    .sort(([, a], [, b]) => b.total - a.total)
+                    .map(([branch, stats]) => (
+                      <div key={branch} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm lg:text-base">{branch}</p>
+                          <p className="text-xs lg:text-sm text-gray-600">
+                            {stats.completed}/{stats.total} completed
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-green-600">
+                            {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
+                          </p>
+                          <p className="text-xs text-gray-500">{stats.pending} pending</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Problem Types */}
+            <Card className="rounded-2xl lg:rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+              <CardHeader className="p-4 lg:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
+                  <TrendingUp className="w-5 h-5" />
+                  Common Issues
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 lg:p-6 pt-0">
+                <div className="space-y-3 lg:space-y-4">
+                  {Object.entries(problemTypeStats)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 8)
+                    .map(([type, count]) => (
+                      <div key={type} className="flex items-center justify-between">
+                        <p className="text-sm lg:text-base text-gray-900 flex-1 mr-4">{type}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 lg:w-20 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${(count / Math.max(...Object.values(problemTypeStats))) * 100}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-gray-600 w-6 lg:w-8 text-right">{count}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </AppLayout>
