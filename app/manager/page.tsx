@@ -30,18 +30,28 @@ export default function ManagerPage() {
 
   useEffect(() => {
     if (user?.isManager) {
+      console.log("Manager loading requests...")
       // For managers, show ALL requests from ALL branches
       const requestsQuery = query(collection(db, "requests"), orderBy("timestamp", "desc"))
 
-      const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
-        const requestsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as MaintenanceRequest[]
+      const unsubscribe = onSnapshot(
+        requestsQuery,
+        (snapshot) => {
+          console.log("Requests snapshot received, docs count:", snapshot.docs.length)
+          const requestsData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as MaintenanceRequest[]
 
-        setRequests(requestsData)
-        setIsLoading(false)
-      })
+          console.log("Processed requests:", requestsData.length)
+          setRequests(requestsData)
+          setIsLoading(false)
+        },
+        (error) => {
+          console.error("Error loading requests:", error)
+          setIsLoading(false)
+        },
+      )
 
       return () => unsubscribe()
     }
@@ -73,6 +83,8 @@ export default function ManagerPage() {
     problemType: string,
   ) => {
     try {
+      console.log("Creating notification for branch:", branchCode, "Status:", newStatus)
+
       const statusMessages = {
         "تمت الموافقة": "Your request has been approved and will be processed soon.",
         "قيد التنفيذ": "Work has started on your request.",
@@ -80,7 +92,7 @@ export default function ManagerPage() {
         مرفوض: "Your request has been rejected. Please contact support for more information.",
       }
 
-      await addDoc(collection(db, "notifications"), {
+      const notificationData = {
         title: "Request Status Updated",
         message: `Your ${problemType} request status: ${getStatusText(newStatus)}. ${statusMessages[newStatus as keyof typeof statusMessages] || ""}`,
         type: "status_update",
@@ -89,10 +101,13 @@ export default function ManagerPage() {
         requestId: requestId,
         branchCode: branchCode,
         isForManager: false,
-      })
-      console.log("Notification created for branch:", branchCode)
+      }
+
+      console.log("Branch notification data:", notificationData)
+      const docRef = await addDoc(collection(db, "notifications"), notificationData)
+      console.log("Branch notification created with ID:", docRef.id)
     } catch (error) {
-      console.error("Error creating notification:", error)
+      console.error("Error creating notification for branch:", error)
     }
   }
 
@@ -100,7 +115,12 @@ export default function ManagerPage() {
     setUpdatingStatus(requestId)
     try {
       const request = requests.find((r) => r.id === requestId)
-      if (!request) return
+      if (!request) {
+        console.error("Request not found:", requestId)
+        return
+      }
+
+      console.log("Updating request status:", requestId, "to:", newStatus)
 
       const updateData: any = { status: newStatus }
       if (message && newStatus === "تم الإنجاز") {
@@ -108,6 +128,7 @@ export default function ManagerPage() {
       }
 
       await updateDoc(doc(db, "requests", requestId), updateData)
+      console.log("Request status updated successfully")
 
       // Create notification for branch user
       await createNotificationForBranch(requestId, request.branchCode, newStatus, request.problemType)

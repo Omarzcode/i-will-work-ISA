@@ -13,10 +13,13 @@ export function useNotifications() {
 
   useEffect(() => {
     if (!user) {
+      console.log("No user, clearing notifications")
       setNotifications([])
       setUnreadCount(0)
       return
     }
+
+    console.log("Setting up notifications for user:", user.uid, "isManager:", user.isManager)
 
     const notificationsRef = collection(db, "notifications")
     let q
@@ -24,6 +27,7 @@ export function useNotifications() {
     if (user.isManager) {
       // Managers see notifications marked for managers
       q = query(notificationsRef, where("isForManager", "==", true), orderBy("timestamp", "desc"))
+      console.log("Manager query set up")
     } else {
       // Branch users see notifications for their branch
       q = query(
@@ -32,63 +36,80 @@ export function useNotifications() {
         where("isForManager", "==", false),
         orderBy("timestamp", "desc"),
       )
+      console.log("Branch user query set up for branch:", user.branchCode)
     }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notificationsList: Notification[] = []
-      let unreadCounter = 0
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        console.log("Notification snapshot received, docs count:", snapshot.docs.length)
 
-      snapshot.forEach((doc) => {
-        const data = doc.data()
-        const notification: Notification = {
-          id: doc.id,
-          title: data.title,
-          message: data.message,
-          type: data.type,
-          read: data.read || false,
-          timestamp: data.timestamp,
-          requestId: data.requestId,
-          branchCode: data.branchCode,
-          isForManager: data.isForManager,
-          recipientId: data.recipientId,
-        }
+        const notificationsList: Notification[] = []
+        let unreadCounter = 0
 
-        notificationsList.push(notification)
-        if (!notification.read) {
-          unreadCounter++
-        }
-      })
+        snapshot.forEach((doc) => {
+          const data = doc.data()
+          console.log("Processing notification:", doc.id, data)
 
-      setNotifications(notificationsList.slice(0, 50)) // Limit to 50 notifications
-      setUnreadCount(unreadCounter)
-
-      // Show browser notification for new unread notifications
-      if (unreadCounter > 0 && "Notification" in window && Notification.permission === "granted") {
-        const latestUnread = notificationsList.find((n) => !n.read)
-        if (latestUnread) {
-          const browserNotification = new Notification(latestUnread.title, {
-            body: latestUnread.message,
-            icon: "/maintenance-logo.png",
-            tag: latestUnread.id,
-          })
-
-          browserNotification.onclick = () => {
-            window.focus()
-            browserNotification.close()
+          const notification: Notification = {
+            id: doc.id,
+            title: data.title,
+            message: data.message,
+            type: data.type,
+            read: data.read || false,
+            timestamp: data.timestamp,
+            requestId: data.requestId,
+            branchCode: data.branchCode,
+            isForManager: data.isForManager,
+            recipientId: data.recipientId,
           }
 
-          setTimeout(() => {
-            browserNotification.close()
-          }, 5000)
-        }
-      }
-    })
+          notificationsList.push(notification)
+          if (!notification.read) {
+            unreadCounter++
+          }
+        })
 
-    return () => unsubscribe()
+        console.log("Processed notifications:", notificationsList.length, "unread:", unreadCounter)
+        setNotifications(notificationsList.slice(0, 50)) // Limit to 50 notifications
+        setUnreadCount(unreadCounter)
+
+        // Show browser notification for new unread notifications
+        if (unreadCounter > 0 && "Notification" in window && Notification.permission === "granted") {
+          const latestUnread = notificationsList.find((n) => !n.read)
+          if (latestUnread) {
+            console.log("Showing browser notification:", latestUnread.title)
+            const browserNotification = new Notification(latestUnread.title, {
+              body: latestUnread.message,
+              icon: "/maintenance-logo.png",
+              tag: latestUnread.id,
+            })
+
+            browserNotification.onclick = () => {
+              window.focus()
+              browserNotification.close()
+            }
+
+            setTimeout(() => {
+              browserNotification.close()
+            }, 5000)
+          }
+        }
+      },
+      (error) => {
+        console.error("Error in notifications listener:", error)
+      },
+    )
+
+    return () => {
+      console.log("Cleaning up notifications listener")
+      unsubscribe()
+    }
   }, [user])
 
   const markAsRead = async (notificationId: string) => {
     try {
+      console.log("Marking notification as read:", notificationId)
       const notificationRef = doc(db, "notifications", notificationId)
       await updateDoc(notificationRef, { read: true })
     } catch (error) {
@@ -98,6 +119,7 @@ export function useNotifications() {
 
   const markAllAsRead = async () => {
     try {
+      console.log("Marking all notifications as read")
       const batch = writeBatch(db)
       const unreadNotifications = notifications.filter((n) => !n.read)
 
@@ -107,6 +129,7 @@ export function useNotifications() {
       })
 
       await batch.commit()
+      console.log("All notifications marked as read")
     } catch (error) {
       console.error("Error marking all notifications as read:", error)
     }

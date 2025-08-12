@@ -60,7 +60,16 @@ export default function CreateRequestPage() {
 
   const createNotificationForManagers = async (requestId: string, problemType: string, branchCode: string) => {
     try {
-      await addDoc(collection(db, "notifications"), {
+      console.log(
+        "Creating notification for managers - Request ID:",
+        requestId,
+        "Problem:",
+        problemType,
+        "Branch:",
+        branchCode,
+      )
+
+      const notificationData = {
         title: "New Maintenance Request",
         message: `New ${problemType} request from ${branchCode} branch`,
         type: "new_request",
@@ -69,10 +78,14 @@ export default function CreateRequestPage() {
         requestId: requestId,
         branchCode: branchCode,
         isForManager: true,
-      })
-      console.log("Notification created for managers")
+      }
+
+      console.log("Notification data:", notificationData)
+
+      const docRef = await addDoc(collection(db, "notifications"), notificationData)
+      console.log("Notification created successfully with ID:", docRef.id)
     } catch (error) {
-      console.error("Error creating notification:", error)
+      console.error("Error creating notification for managers:", error)
     }
   }
 
@@ -89,6 +102,11 @@ export default function CreateRequestPage() {
       return
     }
 
+    if (!user) {
+      setError("User not authenticated")
+      return
+    }
+
     setIsLoading(true)
     setError("")
 
@@ -96,24 +114,29 @@ export default function CreateRequestPage() {
       let imageUrl = ""
 
       if (image) {
+        console.log("Uploading image...")
         imageUrl = await uploadToImgBB(image)
+        console.log("Image uploaded:", imageUrl)
       }
 
+      console.log("Creating request document...")
       // Create request document
-      const docRef = await addDoc(collection(db, "requests"), {
-        branchCode: user?.branchCode || "unknown",
+      const requestData = {
+        branchCode: user.branchCode,
         problemType,
         description: description.trim(),
         status: "قيد المراجعة",
         timestamp: serverTimestamp(),
         imageUrl,
-        userId: user?.uid || "",
-      })
+        userId: user.uid,
+      }
 
+      console.log("Request data:", requestData)
+      const docRef = await addDoc(collection(db, "requests"), requestData)
       console.log("Request created with ID:", docRef.id)
 
       // Create notification for managers
-      await createNotificationForManagers(docRef.id, problemType, user?.branchCode || "unknown")
+      await createNotificationForManagers(docRef.id, problemType, user.branchCode)
 
       toast({
         title: "Request Submitted Successfully!",
