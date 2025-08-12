@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { X, ZoomIn, ZoomOut, RotateCw, Download, Maximize2 } from "lucide-react"
+import { X } from "lucide-react"
 
 interface ImageViewerProps {
   src: string
@@ -159,155 +159,25 @@ export function ImageViewer({ src, alt, isOpen, onClose }: ImageViewerProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[100vw] max-h-[100vh] w-full h-full p-0 bg-black border-0 overflow-hidden">
-        <div className="relative w-full h-full flex flex-col">
-          {/* Header with controls */}
-          <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-white text-sm font-medium truncate max-w-[60%]">{alt}</div>
-              <div className="flex items-center gap-2">
-                {/* Desktop controls */}
-                <div className="hidden sm:flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleZoomOut}
-                    className="text-white hover:bg-white/20 h-9 w-9 p-0"
-                    disabled={scale <= 0.5}
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </Button>
-                  <div className="text-white text-sm font-medium min-w-[50px] text-center">
-                    {Math.round(scale * 100)}%
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleZoomIn}
-                    className="text-white hover:bg-white/20 h-9 w-9 p-0"
-                    disabled={scale >= 4}
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleFitToScreen}
-                    className="text-white hover:bg-white/20 h-9 w-9 p-0"
-                  >
-                    <Maximize2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleRotate}
-                    className="text-white hover:bg-white/20 h-9 w-9 p-0"
-                  >
-                    <RotateCw className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleDownload}
-                    className="text-white hover:bg-white/20 h-9 w-9 p-0"
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={onClose}
-                  className="text-white hover:bg-white/20 h-9 w-9 p-0"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Image container */}
-          <div
-            ref={containerRef}
-            className="flex-1 flex items-center justify-center overflow-hidden select-none"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onDoubleClick={handleDoubleClick}
-            onWheel={handleWheel}
-            style={{
-              cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "default",
-            }}
+      <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 bg-white border-0 overflow-auto">
+        <div className="relative">
+          {/* Close button */}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClose}
+            className="absolute top-2 right-2 z-50 bg-white/80 hover:bg-white rounded-full w-8 h-8 p-0 shadow-md"
           >
-            <img
-              ref={imageRef}
-              src={src || "/placeholder.svg"}
-              alt={alt}
-              className="max-w-none max-h-none object-contain"
-              style={{
-                transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`,
-                transition: isDragging ? "none" : "transform 0.3s ease-out",
-                maxWidth: scale === 1 ? "100%" : "none",
-                maxHeight: scale === 1 ? "100%" : "none",
-              }}
-              draggable={false}
-            />
-          </div>
+            <X className="w-4 h-4" />
+          </Button>
 
-          {/* Mobile controls */}
-          <div className="sm:hidden absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/80 to-transparent p-4">
-            <div className="flex items-center justify-center gap-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleZoomOut}
-                className="text-white hover:bg-white/20 h-12 w-12 p-0 rounded-full"
-                disabled={scale <= 0.5}
-              >
-                <ZoomOut className="w-5 h-5" />
-              </Button>
-              <div className="text-white text-sm font-medium min-w-[60px] text-center bg-white/20 px-3 py-2 rounded-full">
-                {Math.round(scale * 100)}%
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleZoomIn}
-                className="text-white hover:bg-white/20 h-12 w-12 p-0 rounded-full"
-                disabled={scale >= 4}
-              >
-                <ZoomIn className="w-5 h-5" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleFitToScreen}
-                className="text-white hover:bg-white/20 h-12 w-12 p-0 rounded-full"
-              >
-                <Maximize2 className="w-5 h-5" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleRotate}
-                className="text-white hover:bg-white/20 h-12 w-12 p-0 rounded-full"
-              >
-                <RotateCw className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Instructions */}
-          <div className="absolute bottom-20 sm:bottom-4 left-1/2 transform -translate-x-1/2 z-40 pointer-events-none">
-            <div className="bg-black/60 text-white px-4 py-2 rounded-full text-sm text-center backdrop-blur-sm">
-              <div className="hidden sm:block">Double-click or scroll to zoom • Drag to move when zoomed</div>
-              <div className="sm:hidden">Double-tap to zoom • Drag to move when zoomed</div>
-            </div>
-          </div>
+          {/* Image at actual size */}
+          <img
+            src={src || "/placeholder.svg"}
+            alt={alt}
+            className="block max-w-[95vw] max-h-[95vh] object-contain"
+            style={{ width: "auto", height: "auto" }}
+          />
         </div>
       </DialogContent>
     </Dialog>
