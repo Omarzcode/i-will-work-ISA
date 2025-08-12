@@ -1,308 +1,250 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/useAuth"
+import { useNotifications } from "@/hooks/useNotifications"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { db } from "@/lib/firebase"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 import { uploadToImgBB } from "@/lib/imgbb"
-import { db } from "@/lib/firebase"
-import { useAuth } from "@/hooks/useAuth"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Camera, Upload, X, CheckCircle } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
-import { AppLayout } from "@/components/layout/AppLayout"
 
-// Define PROBLEM_TYPES directly in this file
-const PROBLEM_TYPES = [
-  "Air Conditioning",
-  "Electrical",
-  "Plumbing",
-  "Heating",
-  "Lighting",
-  "Security System",
-  "Internet/Network",
-  "Furniture",
-  "Cleaning",
-  "Other",
-] as const
+// Define problem types locally
+const PROBLEM_TYPES = ["Plumbing", "Electrical", "HVAC", "Structural", "Cleaning", "Equipment", "Safety", "Other"]
 
 export default function CreateRequestPage() {
   const { user } = useAuth()
+  const { createNotification } = useNotifications()
   const router = useRouter()
-  const [problemType, setProblemType] = useState("")
-  const [description, setDescription] = useState("")
-  const [image, setImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    problemType: "",
+    priority: "medium",
+    location: "",
+    images: [] as File[],
+  })
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setImage(file)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const removeImage = () => {
-    setImage(null)
-    setImagePreview(null)
-  }
-
-  const createNotificationForManagers = async (requestId: string, problemType: string, branchCode: string) => {
-    try {
-      console.log(
-        "Creating notification for managers - Request ID:",
-        requestId,
-        "Problem:",
-        problemType,
-        "Branch:",
-        branchCode,
-      )
-
-      const notificationData = {
-        title: "New Maintenance Request",
-        message: `New ${problemType} request from ${branchCode} branch`,
-        type: "new_request",
-        timestamp: serverTimestamp(),
-        read: false,
-        requestId: requestId,
-        branchCode: branchCode,
-        isForManager: true,
-      }
-
-      console.log("Notification data:", notificationData)
-
-      const docRef = await addDoc(collection(db, "notifications"), notificationData)
-      console.log("Notification created successfully with ID:", docRef.id)
-    } catch (error) {
-      console.error("Error creating notification for managers:", error)
+    if (e.target.files) {
+      const files = Array.from(e.target.files)
+      setFormData((prev) => ({ ...prev, images: files }))
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!problemType) {
-      setError("Please select an issue type")
-      return
-    }
-
-    if (!description.trim()) {
-      setError("Please describe the issue")
-      return
-    }
-
     if (!user) {
-      setError("User not authenticated")
+      setError("You must be logged in to create a request")
       return
     }
 
-    setIsLoading(true)
+    console.log("CreateRequest: Starting form submission for user:", user.email)
+    setIsSubmitting(true)
     setError("")
 
     try {
-      let imageUrl = ""
-
-      if (image) {
-        console.log("Uploading image...")
-        imageUrl = await uploadToImgBB(image)
-        console.log("Image uploaded:", imageUrl)
+      // Upload images if any
+      const imageUrls: string[] = []
+      if (formData.images.length > 0) {
+        console.log("CreateRequest: Uploading", formData.images.length, "images")
+        for (const image of formData.images) {
+          try {
+            const url = await uploadToImgBB(image)
+            imageUrls.push(url)
+            console.log("CreateRequest: Successfully uploaded image:", url)
+          } catch (uploadError) {
+            console.error("CreateRequest: Error uploading image:", uploadError)
+          }
+        }
       }
 
-      console.log("Creating request document...")
-      // Create request document
+      // Create the request
       const requestData = {
-        branchCode: user.branchCode,
-        problemType,
-        description: description.trim(),
-        status: "قيد المراجعة",
-        timestamp: serverTimestamp(),
-        imageUrl,
+        title: formData.title,
+        description: formData.description,
+        problemType: formData.problemType,
+        priority: formData.priority,
+        location: formData.location,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         userId: user.uid,
+        userEmail: user.email,
+        branchCode: user.branchCode,
+        branchName: user.branchName,
+        imageUrls: imageUrls,
+        rating: null,
+        feedback: null,
       }
 
-      console.log("Request data:", requestData)
+      console.log("CreateRequest: Adding request to Firestore:", requestData)
       const docRef = await addDoc(collection(db, "requests"), requestData)
-      console.log("Request created with ID:", docRef.id)
+      console.log("CreateRequest: Successfully created request with ID:", docRef.id)
 
       // Create notification for managers
-      await createNotificationForManagers(docRef.id, problemType, user.branchCode)
+      try {
+        console.log("CreateRequest: Creating notification for managers")
+        await createNotification({
+          title: "New Maintenance Request",
+          message: `New ${formData.problemType} request from ${user.branchName}: ${formData.title}`,
+          isForManager: true,
+        })
+        console.log("CreateRequest: Successfully created manager notification")
+      } catch (notificationError) {
+        console.error("CreateRequest: Error creating notification:", notificationError)
+        // Don't fail the request creation if notification fails
+      }
 
-      toast({
-        title: "Request Submitted Successfully!",
-        description: "Your maintenance request has been submitted and is now under review.",
-      })
-
-      // Reset form
-      setProblemType("")
-      setDescription("")
-      setImage(null)
-      setImagePreview(null)
-
-      // Navigate back after a short delay to show the success message
-      setTimeout(() => {
-        router.push("/dashboard")
-      }, 1500)
+      console.log("CreateRequest: Request created successfully, redirecting to dashboard")
+      router.push("/dashboard")
     } catch (error) {
-      console.error("Error submitting request:", error)
-      setError("Failed to submit request. Please try again.")
-      toast({
-        title: "Error",
-        description: "Failed to submit request. Please try again.",
-        variant: "destructive",
-      })
+      console.error("CreateRequest: Error creating request:", error)
+      setError("Failed to create request. Please try again.")
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
-  return (
-    <AppLayout>
-      <div className="min-h-screen bg-gray-50">
-        <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-          <div className="mb-6">
-            <Button variant="ghost" onClick={() => router.back()} className="mb-4 rounded-2xl">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-            <h1 className="text-2xl font-bold text-gray-900">New Request</h1>
-          </div>
-
-          <Card className="max-w-2xl mx-auto rounded-3xl">
-            <CardHeader>
-              <CardTitle>Create Maintenance Request</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {error && (
-                  <Alert variant="destructive" className="rounded-2xl">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="problemType">Issue Type</Label>
-                  <Select value={problemType} onValueChange={setProblemType}>
-                    <SelectTrigger className="rounded-2xl">
-                      <SelectValue placeholder="Select an issue type" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl">
-                      {PROBLEM_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Issue Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe the issue in detail..."
-                    rows={5}
-                    disabled={isLoading}
-                    className="rounded-2xl"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Photo (Optional)</Label>
-                  {imagePreview ? (
-                    <div className="relative">
-                      <img
-                        src={imagePreview || "/placeholder.svg"}
-                        alt="Preview"
-                        className="w-full max-w-md h-48 object-cover rounded-2xl border"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2 rounded-xl"
-                        onClick={removeImage}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                      <div className="absolute bottom-2 left-2 bg-green-600 text-white px-2 py-1 rounded-xl text-xs flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Image ready
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6">
-                      <div className="text-center">
-                        <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <div className="flex text-sm text-gray-600">
-                          <label
-                            htmlFor="image-upload"
-                            className="relative cursor-pointer bg-white rounded-xl font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
-                          >
-                            <span>Upload a photo</span>
-                            <input
-                              id="image-upload"
-                              name="image-upload"
-                              type="file"
-                              className="sr-only"
-                              accept="image/*"
-                              onChange={handleImageChange}
-                              disabled={isLoading}
-                            />
-                          </label>
-                          <p className="pl-1">or drag and drop</p>
-                        </div>
-                        <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.back()}
-                    disabled={isLoading}
-                    className="flex-1 rounded-2xl"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-2xl"
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Submitting...
-                      </div>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Submit Request
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Alert>
+          <AlertDescription>You must be logged in to create a maintenance request.</AlertDescription>
+        </Alert>
       </div>
-    </AppLayout>
+    )
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <Card className="max-w-2xl mx-auto rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-blue-900">Create Maintenance Request</CardTitle>
+          <CardDescription>Submit a new maintenance request for your branch: {user.branchName}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <Alert variant="destructive" className="rounded-lg">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Request Title *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Brief description of the issue"
+                required
+                className="rounded-lg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="problemType">Problem Type *</Label>
+              <Select
+                value={formData.problemType}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, problemType: value }))}
+                required
+              >
+                <SelectTrigger className="rounded-lg">
+                  <SelectValue placeholder="Select problem type" />
+                </SelectTrigger>
+                <SelectContent className="rounded-lg">
+                  {PROBLEM_TYPES.map((type) => (
+                    <SelectItem key={type} value={type} className="rounded-lg">
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="priority">Priority Level</Label>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
+              >
+                <SelectTrigger className="rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-lg">
+                  <SelectItem value="low" className="rounded-lg">
+                    Low
+                  </SelectItem>
+                  <SelectItem value="medium" className="rounded-lg">
+                    Medium
+                  </SelectItem>
+                  <SelectItem value="high" className="rounded-lg">
+                    High
+                  </SelectItem>
+                  <SelectItem value="urgent" className="rounded-lg">
+                    Urgent
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
+                placeholder="Specific location within the branch"
+                className="rounded-lg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description *</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Detailed description of the problem"
+                rows={4}
+                required
+                className="rounded-lg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="images">Images (Optional)</Label>
+              <Input
+                id="images"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleImageChange}
+                className="rounded-lg"
+              />
+              {formData.images.length > 0 && (
+                <p className="text-sm text-gray-600">{formData.images.length} image(s) selected</p>
+              )}
+            </div>
+
+            <Button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg">
+              {isSubmitting ? "Creating Request..." : "Create Request"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

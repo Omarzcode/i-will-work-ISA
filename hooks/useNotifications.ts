@@ -1,144 +1,50 @@
 "use client"
-
-import { useState, useEffect } from "react"
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from "firebase/firestore"
-import { db } from "@/lib/firebase"
 import { useAuth } from "./useAuth"
-import type { Notification } from "@/lib/types"
+import { db } from "@/lib/firebase"
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+
+export interface CreateNotificationParams {
+  title: string
+  message: string
+  branchCode?: string
+  isForManager?: boolean
+}
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
   const { user } = useAuth()
 
-  useEffect(() => {
-    if (!user) {
-      console.log("No user, clearing notifications")
-      setNotifications([])
-      setUnreadCount(0)
-      return
-    }
-
-    console.log("Setting up notifications for user:", user.uid, "isManager:", user.isManager)
-
-    const notificationsRef = collection(db, "notifications")
-    let q
-
-    if (user.isManager) {
-      // Managers see notifications marked for managers
-      q = query(notificationsRef, where("isForManager", "==", true), orderBy("timestamp", "desc"))
-      console.log("Manager query set up")
-    } else {
-      // Branch users see notifications for their branch
-      q = query(
-        notificationsRef,
-        where("branchCode", "==", user.branchCode),
-        where("isForManager", "==", false),
-        orderBy("timestamp", "desc"),
-      )
-      console.log("Branch user query set up for branch:", user.branchCode)
-    }
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        console.log("Notification snapshot received, docs count:", snapshot.docs.length)
-
-        const notificationsList: Notification[] = []
-        let unreadCounter = 0
-
-        snapshot.forEach((doc) => {
-          const data = doc.data()
-          console.log("Processing notification:", doc.id, data)
-
-          const notification: Notification = {
-            id: doc.id,
-            title: data.title,
-            message: data.message,
-            type: data.type,
-            read: data.read || false,
-            timestamp: data.timestamp,
-            requestId: data.requestId,
-            branchCode: data.branchCode,
-            isForManager: data.isForManager,
-            recipientId: data.recipientId,
-          }
-
-          notificationsList.push(notification)
-          if (!notification.read) {
-            unreadCounter++
-          }
-        })
-
-        console.log("Processed notifications:", notificationsList.length, "unread:", unreadCounter)
-        setNotifications(notificationsList.slice(0, 50)) // Limit to 50 notifications
-        setUnreadCount(unreadCounter)
-
-        // Show browser notification for new unread notifications
-        if (unreadCounter > 0 && "Notification" in window && Notification.permission === "granted") {
-          const latestUnread = notificationsList.find((n) => !n.read)
-          if (latestUnread) {
-            console.log("Showing browser notification:", latestUnread.title)
-            const browserNotification = new Notification(latestUnread.title, {
-              body: latestUnread.message,
-              icon: "/maintenance-logo.png",
-              tag: latestUnread.id,
-            })
-
-            browserNotification.onclick = () => {
-              window.focus()
-              browserNotification.close()
-            }
-
-            setTimeout(() => {
-              browserNotification.close()
-            }, 5000)
-          }
-        }
-      },
-      (error) => {
-        console.error("Error in notifications listener:", error)
-      },
-    )
-
-    return () => {
-      console.log("Cleaning up notifications listener")
-      unsubscribe()
-    }
-  }, [user])
-
-  const markAsRead = async (notificationId: string) => {
+  const createNotification = async (params: CreateNotificationParams) => {
     try {
-      console.log("Marking notification as read:", notificationId)
-      const notificationRef = doc(db, "notifications", notificationId)
-      await updateDoc(notificationRef, { read: true })
+      console.log("useNotifications: Creating notification with params:", params)
+
+      if (!user) {
+        console.error("useNotifications: No user found when creating notification")
+        return
+      }
+
+      const notificationData = {
+        title: params.title,
+        message: params.message,
+        timestamp: serverTimestamp(),
+        isRead: false,
+        branchCode: params.branchCode || null,
+        isForManager: params.isForManager || false,
+        createdBy: user.email,
+      }
+
+      console.log("useNotifications: Adding notification to Firestore:", notificationData)
+
+      const docRef = await addDoc(collection(db, "notifications"), notificationData)
+
+      console.log("useNotifications: Successfully created notification with ID:", docRef.id)
+      return docRef.id
     } catch (error) {
-      console.error("Error marking notification as read:", error)
-    }
-  }
-
-  const markAllAsRead = async () => {
-    try {
-      console.log("Marking all notifications as read")
-      const batch = writeBatch(db)
-      const unreadNotifications = notifications.filter((n) => !n.read)
-
-      unreadNotifications.forEach((notification) => {
-        const notificationRef = doc(db, "notifications", notification.id)
-        batch.update(notificationRef, { read: true })
-      })
-
-      await batch.commit()
-      console.log("All notifications marked as read")
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error)
+      console.error("useNotifications: Error creating notification:", error)
+      throw error
     }
   }
 
   return {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
+    createNotification,
   }
 }
