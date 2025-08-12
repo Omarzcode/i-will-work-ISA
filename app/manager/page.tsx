@@ -12,8 +12,21 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle, Star, Eye, Building, Filter } from "lucide-react"
+import {
+  Search,
+  Calendar,
+  ImageIcon,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Star,
+  Eye,
+  Building,
+  Filter,
+  ZoomIn,
+} from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ImageViewer } from "@/components/ui/image-viewer"
 import { useToast } from "@/hooks/use-toast"
 
 export default function ManagerPage() {
@@ -27,6 +40,8 @@ export default function ManagerPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [completionMessage, setCompletionMessage] = useState("")
+  const [imageViewerOpen, setImageViewerOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string } | null>(null)
 
   useEffect(() => {
     if (user?.isManager) {
@@ -127,6 +142,11 @@ export default function ManagerPage() {
     } finally {
       setUpdatingStatus(null)
     }
+  }
+
+  const handleImageClick = (imageUrl: string, alt: string) => {
+    setSelectedImage({ src: imageUrl, alt })
+    setImageViewerOpen(true)
   }
 
   const getStatusColor = (status: string) => {
@@ -451,6 +471,32 @@ export default function ManagerPage() {
                         {/* Description */}
                         <p className="text-gray-600 line-clamp-2 leading-relaxed">{request.description}</p>
 
+                        {/* Image Preview */}
+                        {request.imageUrl && (
+                          <div className="relative">
+                            <div
+                              className="relative w-full h-48 bg-gray-100 rounded-2xl overflow-hidden cursor-pointer group"
+                              onClick={() =>
+                                handleImageClick(request.imageUrl!, `${request.problemType} - ${request.branchCode}`)
+                              }
+                            >
+                              <img
+                                src={request.imageUrl || "/placeholder.svg"}
+                                alt={`${request.problemType} - ${request.branchCode}`}
+                                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 rounded-full p-3">
+                                  <ZoomIn className="w-6 h-6 text-gray-700" />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded-full text-xs font-medium">
+                              Click to zoom
+                            </div>
+                          </div>
+                        )}
+
                         {/* Feedback */}
                         {request.feedback && (
                           <div className="p-4 bg-blue-50 rounded-2xl border border-blue-200">
@@ -531,11 +577,29 @@ export default function ManagerPage() {
                                   {selectedRequest.imageUrl && (
                                     <div>
                                       <label className="text-sm font-medium text-gray-700">Attached Photo</label>
-                                      <img
-                                        src={selectedRequest.imageUrl || "/placeholder.svg"}
-                                        alt="Request attachment"
-                                        className="mt-2 w-full h-64 object-cover rounded-2xl border"
-                                      />
+                                      <div
+                                        className="mt-2 relative cursor-pointer group"
+                                        onClick={() =>
+                                          handleImageClick(
+                                            selectedRequest.imageUrl!,
+                                            `${selectedRequest.problemType} - ${selectedRequest.branchCode}`,
+                                          )
+                                        }
+                                      >
+                                        <img
+                                          src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                          alt="Request attachment"
+                                          className="w-full h-64 object-cover rounded-2xl border transition-transform duration-200 group-hover:scale-[1.02]"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center rounded-2xl">
+                                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 rounded-full p-3">
+                                            <ZoomIn className="w-6 h-6 text-gray-700" />
+                                          </div>
+                                        </div>
+                                        <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded-full text-xs font-medium">
+                                          Click to zoom
+                                        </div>
+                                      </div>
                                     </div>
                                   )}
                                   {selectedRequest.rating && (
@@ -683,6 +747,19 @@ export default function ManagerPage() {
             )}
           </div>
         </div>
+
+        {/* Image Viewer */}
+        {selectedImage && (
+          <ImageViewer
+            src={selectedImage.src || "/placeholder.svg"}
+            alt={selectedImage.alt}
+            isOpen={imageViewerOpen}
+            onClose={() => {
+              setImageViewerOpen(false)
+              setSelectedImage(null)
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   )

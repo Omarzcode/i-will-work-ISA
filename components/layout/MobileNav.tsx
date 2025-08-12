@@ -41,7 +41,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
       title: "Manage Requests",
       href: "/manager",
       icon: Users,
-      description: "Manage all requests and analytics",
+      description: "Manage all requests from branches",
       roles: ["manager"],
     },
     {
@@ -55,7 +55,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
   const filteredItems = navigationItems.filter((item) => {
     if (user?.isManager) {
-      // For managers, only show Dashboard, Manage Requests, and Analytics
+      // For managers, only show these specific items
       return ["Dashboard", "Manage Requests", "Analytics"].includes(item.title)
     }
     return item.roles.includes("user")

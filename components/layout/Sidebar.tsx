@@ -46,8 +46,8 @@ export function Sidebar() {
   const { user } = useAuth()
 
   const filteredItems = navigationItems.filter((item) => {
-  if (user?.isManager) {
-    // For managers, only show these specific items
+    if (user?.isManager) {
+      // For managers, only show these specific items
       return ["Dashboard", "Manage Requests", "Analytics"].includes(item.title)
     }
     // For regular users, show user items
