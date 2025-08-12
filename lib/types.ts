@@ -1,66 +1,53 @@
 export interface User {
   uid: string
   email: string
-  role: "manager" | "branch"
-  branchCode?: string
-  displayName?: string
+  branchCode: string
+  isManager: boolean
 }
 
 export interface MaintenanceRequest {
-  id: string
-  title: string
-  description: string
-  category: "plumbing" | "electrical" | "hvac" | "equipment" | "cleaning" | "other"
-  priority: "low" | "medium" | "high" | "urgent"
-  status: "pending" | "approved" | "in_progress" | "completed" | "rejected"
+  id?: string
   branchCode: string
-  branchName: string
-  createdBy: string
-  createdAt: any
-  updatedAt: any
-  assignedTo?: string
-  estimatedCost?: number
-  actualCost?: number
-  completedAt?: any
-  images?: string[]
-  notes?: string
+  problemType: string
+  description: string
+  imageUrl?: string
+  timestamp: any
+  status: string
+  userId: string
   rating?: number
   feedback?: string
+  completionMessage?: string
 }
 
 export interface Notification {
-  id: string
+  id?: string
   title: string
   message: string
-  type: "new_request" | "status_update" | "assignment" | "completion" | "error" | "success" | "warning" | "info"
+  type: "new_request" | "status_update" | "success" | "warning" | "error" | "system"
+  timestamp: any
   read: boolean
-  createdAt: any
-  recipientId?: string
-  recipientRole?: "manager" | "branch" | "all"
   requestId?: string
   branchCode?: string
+  isForManager: boolean
 }
 
-export interface Branch {
-  code: string
-  name: string
-  address: string
-  manager: string
-  phone: string
-}
+export const PROBLEM_TYPES = [
+  "Air Conditioning",
+  "Electrical",
+  "Plumbing",
+  "Heating",
+  "Lighting",
+  "Security System",
+  "Internet/Network",
+  "Furniture",
+  "Cleaning",
+  "Other",
+] as const
 
-export interface Analytics {
-  totalRequests: number
-  pendingRequests: number
-  completedRequests: number
-  averageCompletionTime: number
-  totalCost: number
-  requestsByCategory: Record<string, number>
-  requestsByPriority: Record<string, number>
-  requestsByStatus: Record<string, number>
-  monthlyTrends: Array<{
-    month: string
-    requests: number
-    cost: number
-  }>
-}
+export const STATUS_OPTIONS = [
+  "قيد المراجعة", // Under Review
+  "تمت الموافقة", // Approved
+  "قيد التنفيذ", // In Progress
+  "تم الإنجاز", // Completed
+  "مرفوض", // Rejected
+] as const

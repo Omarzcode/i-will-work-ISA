@@ -7,7 +7,6 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 import { uploadToImgBB } from "@/lib/imgbb"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
-import { PROBLEM_TYPES } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +16,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Camera, Upload, X, CheckCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { AppLayout } from "@/components/layout/AppLayout"
+
+// Define PROBLEM_TYPES directly in this file
+const PROBLEM_TYPES = [
+  "Air Conditioning",
+  "Electrical",
+  "Plumbing",
+  "Heating",
+  "Lighting",
+  "Security System",
+  "Internet/Network",
+  "Furniture",
+  "Cleaning",
+  "Other",
+] as const
 
 export default function CreateRequestPage() {
   const { user } = useAuth()
