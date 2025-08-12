@@ -7,11 +7,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Home, FileText, Plus, BarChart3, Users, Building, Coffee } from "lucide-react"
 
-interface MobileNavProps {
-  open: boolean
-  onClose: () => void
-}
-
 const navigationItems = [
   {
     title: "Dashboard",
@@ -45,6 +40,11 @@ const navigationItems = [
   },
 ]
 
+interface MobileNavProps {
+  open: boolean
+  onClose: () => void
+}
+
 export function MobileNav({ open, onClose }: MobileNavProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -64,53 +64,56 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-80 p-0">
-        <SheetHeader className="p-6 border-b">
-          <div className="flex items-center gap-2">
-            <Coffee className="h-8 w-8 text-blue-600" />
-            <div>
-              <SheetTitle className="text-lg font-bold text-gray-900">Caribou</SheetTitle>
-              <p className="text-xs text-gray-500">Maintenance System</p>
-            </div>
-          </div>
-        </SheetHeader>
+      <SheetContent side="left" className="w-64 p-0">
+        <div className="flex h-full w-full flex-col bg-white">
+          {/* Logo */}
+          <SheetHeader className="flex h-16 items-center border-b px-6">
+            <SheetTitle className="flex items-center gap-2">
+              <Coffee className="h-8 w-8 text-blue-600" />
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Caribou</h1>
+                <p className="text-xs text-gray-500">Maintenance System</p>
+              </div>
+            </SheetTitle>
+          </SheetHeader>
 
-        {/* User Info */}
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <Building className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">{user?.isManager ? "Manager" : user?.branchCode}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
+          {/* User Info */}
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Building className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{user?.isManager ? "Manager" : user?.branchCode}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
+              </div>
             </div>
           </div>
+
+          {/* Navigation */}
+          <ScrollArea className="flex-1 px-3 py-4">
+            <nav className="space-y-2">
+              {filteredItems.map((item) => {
+                const isActive = pathname === item.href
+                const Icon = item.icon
+
+                return (
+                  <Button
+                    key={item.href}
+                    variant={isActive ? "default" : "ghost"}
+                    className={`w-full justify-start gap-3 ${
+                      isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                    onClick={() => handleNavigation(item.href)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.title}
+                  </Button>
+                )
+              })}
+            </nav>
+          </ScrollArea>
         </div>
-
-        {/* Navigation */}
-        <ScrollArea className="flex-1 px-3 py-4">
-          <nav className="space-y-2">
-            {filteredItems.map((item) => {
-              const isActive = pathname === item.href
-              const Icon = item.icon
-
-              return (
-                <Button
-                  key={item.href}
-                  variant={isActive ? "default" : "ghost"}
-                  className={`w-full justify-start gap-3 ${
-                    isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                  onClick={() => handleNavigation(item.href)}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.title}
-                </Button>
-              )
-            })}
-          </nav>
-        </ScrollArea>
       </SheetContent>
     </Sheet>
   )

@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
@@ -9,90 +10,85 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Coffee, Loader2 } from "lucide-react"
+import { Coffee, Mail, Lock, Loader2, User, Shield } from "lucide-react"
 
 export default function LoginPage() {
-  const { user, login, loading } = useAuth()
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const { user, login } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
-    if (user && !loading) {
+    if (user) {
       router.replace("/dashboard")
     }
-  }, [user, loading, router])
+  }, [user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     setError("")
+    setIsLoading(true)
 
     try {
       await login(email, password)
       router.replace("/dashboard")
     } catch (error: any) {
-      console.error("Login error:", error)
-      setError(error.message || "Failed to sign in. Please check your credentials.")
+      setError("Invalid email or password. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-600 border-t-transparent"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
+  const fillDemoCredentials = (type: "manager" | "branch") => {
+    if (type === "manager") {
+      setEmail("manager@caribou.com")
+      setPassword("manager123")
+    } else {
+      setEmail("branch001@caribou.com")
+      setPassword("branch123")
+    }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo and Brand */}
+        {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl mb-4 shadow-lg">
-            <Coffee className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
+            <Coffee className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Caribou</h1>
-          <p className="text-gray-600">Maintenance Management System</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to your Caribou Maintenance account</p>
         </div>
 
-        {/* Login Card */}
-        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="text-center pb-6">
-            <CardTitle className="text-xl font-semibold text-gray-900">Sign In</CardTitle>
-            <CardDescription className="text-gray-600">Enter your credentials to access your account</CardDescription>
+        {/* Login Form */}
+        <Card className="backdrop-blur-sm bg-white/80 border-0 shadow-xl">
+          <CardHeader className="space-y-1 pb-6">
+            <CardTitle className="text-2xl font-semibold text-center">Sign In</CardTitle>
+            <CardDescription className="text-center text-gray-600">
+              Enter your credentials to access your account
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <Alert variant="destructive" className="border-red-200 bg-red-50">
-                  <AlertDescription className="text-red-800">{error}</AlertDescription>
-                </Alert>
-              )}
-
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium text-gray-700">
                   Email Address
                 </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                  disabled={isLoading}
-                  className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                />
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -100,69 +96,68 @@ export default function LoginPage() {
                   Password
                 </Label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
                     id="password"
-                    type={showPassword ? "text" : "password"}
+                    type="password"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     required
-                    disabled={isLoading}
-                    className="h-11 pr-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-11 px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </Button>
                 </div>
               </div>
 
+              {error && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertDescription className="text-red-700">{error}</AlertDescription>
+                </Alert>
+              )}
+
               <Button
                 type="submit"
-                className="w-full h-11 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg transition-all duration-200"
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Signing in...
-                  </div>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing In...
+                  </>
                 ) : (
                   "Sign In"
                 )}
               </Button>
             </form>
+          </CardContent>
+        </Card>
 
-            {/* Demo Accounts */}
-            <div className="mt-8 p-4 bg-gray-50 rounded-lg border">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Demo Accounts</h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between items-center p-2 bg-white rounded border">
-                  <div>
-                    <p className="font-medium text-gray-900">Manager Account</p>
-                    <p className="text-gray-600">manager@caribou.com</p>
-                  </div>
-                  <code className="text-blue-600 bg-blue-50 px-2 py-1 rounded">manager123</code>
-                </div>
-                <div className="flex justify-between items-center p-2 bg-white rounded border">
-                  <div>
-                    <p className="font-medium text-gray-900">Branch Account</p>
-                    <p className="text-gray-600">branch1@caribou.com</p>
-                  </div>
-                  <code className="text-blue-600 bg-blue-50 px-2 py-1 rounded">branch123</code>
-                </div>
-              </div>
-            </div>
+        {/* Demo Accounts */}
+        <Card className="mt-6 backdrop-blur-sm bg-white/60 border-0 shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-center text-gray-800">Demo Accounts</CardTitle>
+            <CardDescription className="text-center text-gray-600 text-sm">
+              Try the system with these demo credentials
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full h-10 border-blue-200 hover:bg-blue-50 hover:border-blue-300 transition-colors bg-transparent"
+              onClick={() => fillDemoCredentials("manager")}
+            >
+              <Shield className="mr-2 h-4 w-4 text-blue-600" />
+              <span className="font-medium">Manager Account</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full h-10 border-green-200 hover:bg-green-50 hover:border-green-300 transition-colors bg-transparent"
+              onClick={() => fillDemoCredentials("branch")}
+            >
+              <User className="mr-2 h-4 w-4 text-green-600" />
+              <span className="font-medium">Branch Account</span>
+            </Button>
           </CardContent>
         </Card>
 
