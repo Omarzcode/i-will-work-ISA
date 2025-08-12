@@ -1,51 +1,11 @@
 "use client"
 
-import { useRouter, usePathname } from "next/navigation"
-import { useAuth } from "@/hooks/useAuth"
-import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Home, FileText, Plus, BarChart3, Users, Building, X, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/hooks/useAuth"
+import { Home, FileText, Plus, BarChart3, User, Building2 } from "lucide-react"
+import Link from "next/link"
 import Image from "next/image"
-
-const navigationItems = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: Home,
-    roles: ["user", "manager"],
-    description: "Overview and stats",
-  },
-  {
-    title: "Create Request",
-    href: "/create-request",
-    icon: Plus,
-    roles: ["user"],
-    description: "Submit new request",
-  },
-  {
-    title: "My Requests",
-    href: "/my-requests",
-    icon: FileText,
-    roles: ["user"],
-    description: "Track your requests",
-  },
-  {
-    title: "Manage Requests",
-    href: "/manager",
-    icon: Users,
-    roles: ["manager"],
-    description: "Review all requests",
-  },
-  {
-    title: "Analytics",
-    href: "/analytics",
-    icon: BarChart3,
-    roles: ["manager"],
-    description: "Reports and insights",
-  },
-]
 
 interface MobileNavProps {
   open: boolean
@@ -53,106 +13,115 @@ interface MobileNavProps {
 }
 
 export function MobileNav({ open, onClose }: MobileNavProps) {
-  const router = useRouter()
-  const pathname = usePathname()
   const { user } = useAuth()
 
-  const filteredItems = navigationItems.filter((item) => {
-    if (user?.isManager) {
-      return item.roles.includes("manager")
-    }
-    return item.roles.includes("user")
-  })
-
-  const handleNavigation = (href: string) => {
-    router.push(href)
-    onClose()
-  }
+  const navigationItems = [
+    {
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: Home,
+      description: "Overview and quick stats",
+    },
+    {
+      title: "Create Request",
+      href: "/create-request",
+      icon: Plus,
+      description: "Submit a new maintenance request",
+    },
+    {
+      title: "My Requests",
+      href: "/my-requests",
+      icon: FileText,
+      description: "Track your submitted requests",
+    },
+    ...(user?.isManager
+      ? [
+          {
+            title: "Manager Dashboard",
+            href: "/manager",
+            icon: BarChart3,
+            description: "Manage all requests and analytics",
+          },
+          {
+            title: "Analytics",
+            href: "/analytics",
+            icon: BarChart3,
+            description: "View detailed reports and insights",
+          },
+        ]
+      : []),
+  ]
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-full max-w-sm p-0 rounded-r-3xl">
-        <div className="flex h-full flex-col">
-          {/* Header - Enhanced for mobile */}
-          <SheetHeader className="flex-row items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center p-1 shadow-sm">
-                <Image
-                  src="/maintenance-logo.png"
-                  alt="Maintenance System"
-                  width={36}
-                  height={36}
-                  className="object-contain rounded-xl"
-                />
-              </div>
-              <div>
-                <SheetTitle className="text-xl font-bold text-blue-900">Caribou</SheetTitle>
-                <p className="text-sm text-blue-600">Maintenance System</p>
-              </div>
+      <SheetContent side="left" className="w-80 p-0 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <SheetHeader className="p-6 pb-4 bg-white/80 backdrop-blur-sm border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center p-2">
+              <Image
+                src="/maintenance-logo.png"
+                alt="Maintenance System"
+                width={32}
+                height={32}
+                className="object-contain rounded-xl"
+              />
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-12 w-12 rounded-2xl hover:bg-blue-200 active:bg-blue-300"
-            >
-              <X className="h-6 w-6 text-blue-700" />
-            </Button>
-          </SheetHeader>
+            <div>
+              <SheetTitle className="text-xl font-bold text-gray-900">Caribou</SheetTitle>
+              <p className="text-sm text-gray-600">Maintenance System</p>
+            </div>
+          </div>
+        </SheetHeader>
 
-          {/* User Info - Enhanced mobile design */}
-          <div className="p-6 border-b bg-white">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center shadow-sm">
-                <Building className="w-7 h-7 text-blue-600" />
+        <div className="flex flex-col h-full">
+          {/* User Info */}
+          <div className="p-6 bg-white/60 backdrop-blur-sm border-b">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                <User className="w-6 h-6 text-blue-600" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-semibold text-gray-900">
-                    {user?.isManager ? "Manager" : user?.branchCode}
-                  </p>
-                  {user?.isManager && <Badge className="bg-blue-100 text-blue-800 text-xs rounded-full">Admin</Badge>}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{user?.email}</p>
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <Building2 className="w-4 h-4" />
+                  <span>Branch {user?.branchCode}</span>
+                  {user?.isManager && <span className="text-blue-600 font-medium">• Manager</span>}
                 </div>
-                <p className="text-sm text-gray-600 truncate">{user?.email}</p>
               </div>
             </div>
           </div>
 
-          {/* Navigation - Mobile optimized */}
-          <ScrollArea className="flex-1 px-4 py-6">
-            <nav className="space-y-3">
-              {filteredItems.map((item) => {
-                const isActive = pathname === item.href
-                const Icon = item.icon
-
-                return (
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-2">
+            {navigationItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <Link key={item.href} href={item.href} onClick={onClose}>
                   <Button
-                    key={item.href}
                     variant="ghost"
-                    className={`w-full h-16 justify-start gap-4 rounded-2xl p-4 transition-all duration-200 ${
-                      isActive
-                        ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg"
-                        : "text-gray-700 hover:bg-gray-100 active:bg-gray-200"
-                    }`}
-                    onClick={() => handleNavigation(item.href)}
+                    className="w-full h-auto p-4 justify-start rounded-2xl hover:bg-white/80 hover:shadow-sm transition-all duration-200 group"
                   >
-                    <div className={`p-2 rounded-xl ${isActive ? "bg-blue-500" : "bg-gray-100"}`}>
-                      <Icon className="h-5 w-5" />
+                    <div className="flex items-center gap-4 w-full">
+                      <div className="w-10 h-10 bg-white/80 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                        <Icon className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-gray-900">{item.title}</div>
+                        <div className="text-sm text-gray-600">{item.description}</div>
+                      </div>
                     </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-medium text-base">{item.title}</p>
-                      <p className={`text-sm ${isActive ? "text-blue-100" : "text-gray-500"}`}>{item.description}</p>
-                    </div>
-                    <ChevronRight className={`h-5 w-5 ${isActive ? "text-blue-200" : "text-gray-400"}`} />
                   </Button>
-                )
-              })}
-            </nav>
-          </ScrollArea>
+                </Link>
+              )
+            })}
+          </nav>
 
-          {/* Footer - App version or additional info */}
-          <div className="p-4 border-t bg-gray-50">
-            <p className="text-center text-xs text-gray-500">Caribou Maintenance v1.0</p>
+          {/* Footer */}
+          <div className="p-6 bg-white/60 backdrop-blur-sm border-t">
+            <div className="text-center">
+              <p className="text-sm text-gray-600">Caribou Maintenance System</p>
+              <p className="text-xs text-gray-500 mt-1">Version 2.0</p>
+            </div>
           </div>
         </div>
       </SheetContent>

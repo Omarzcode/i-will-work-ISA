@@ -60,7 +60,7 @@ export default function AnalyticsPage() {
   const pendingRequests = requests.filter((r) => r.status === "قيد المراجعة").length
   const inProgressRequests = requests.filter((r) => r.status === "قيد التنفيذ").length
   const completedRequests = requests.filter((r) => r.status === "تم الإنجاز").length
-const x =0
+
   // Branch analytics
   const branchStats = requests.reduce(
     (acc, request) => {

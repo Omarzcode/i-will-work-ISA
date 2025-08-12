@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
-import { useRouter } from "next/router" // Import router from next/router
 import type { MaintenanceRequest } from "@/lib/types"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Button } from "@/components/ui/button"
@@ -38,13 +37,14 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
+  Plus,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 export default function MyRequestsPage() {
   const { user } = useAuth()
   const { toast } = useToast()
-  const router = useRouter() // Declare router variable
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -359,12 +359,12 @@ export default function MyRequestsPage() {
                       : "You haven't submitted any requests yet"}
                   </p>
                   {!searchQuery && statusFilter === "all" && (
-                    <Button
-                      onClick={() => router.push("/create-request")}
-                      className="bg-blue-600 hover:bg-blue-700 rounded-2xl h-12 px-6"
-                    >
-                      Create Your First Request
-                    </Button>
+                    <Link href="/create-request">
+                      <Button className="bg-blue-600 hover:bg-blue-700 rounded-2xl h-12 px-6">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Your First Request
+                      </Button>
+                    </Link>
                   )}
                 </CardContent>
               </Card>
