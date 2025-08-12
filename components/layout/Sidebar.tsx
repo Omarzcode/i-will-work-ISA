@@ -46,12 +46,12 @@ export function Sidebar() {
   const { user } = useAuth()
 
   const filteredItems = navigationItems.filter((item) => {
-    if (user?.isManager) {
-      // For managers, only show Dashboard, Manage Requests, and Analytics
-      return item.roles.includes("manager")
-    }
-    return item.roles.includes("user")
-  })
+  if (user?.isManager) {
+    // For managers, only show Dashboard, Manage Requests, and Analytics
+    return item.title === "Dashboard" || item.title === "Manage Requests" || item.title === "Analytics"
+  }
+  return item.roles.includes("user")
+})
 
   return (
     <div className="flex h-full w-full flex-col bg-white border-r rounded-r-3xl">
