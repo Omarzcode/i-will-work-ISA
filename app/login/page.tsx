@@ -137,33 +137,7 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        {/* Demo Accounts */}
-        <Card className="mt-6 bg-white/80 backdrop-blur-sm border-0 shadow-xl rounded-3xl">
-          <CardHeader className="pb-4 pt-6">
-            <CardTitle className="text-lg font-semibold text-center text-gray-800">Demo Accounts</CardTitle>
-            <CardDescription className="text-center text-gray-600 text-sm">
-              Try the system with these demo credentials
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 px-6 pb-6">
-            <Button
-              variant="outline"
-              className="w-full h-12 border-2 border-blue-200 hover:bg-blue-50 hover:border-blue-300 transition-colors bg-white/80 rounded-2xl"
-              onClick={() => fillDemoCredentials("manager")}
-            >
-              <Shield className="mr-2 h-4 w-4 text-blue-600" />
-              <span className="font-medium text-gray-700">Manager Account</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full h-12 border-2 border-green-200 hover:bg-green-50 hover:border-green-300 transition-colors bg-white/80 rounded-2xl"
-              onClick={() => fillDemoCredentials("branch")}
-            >
-              <User className="mr-2 h-4 w-4 text-green-600" />
-              <span className="font-medium text-gray-700">Branch Account</span>
-            </Button>
-          </CardContent>
-        </Card>
+        
 
         {/* Footer */}
         <div className="text-center mt-8">

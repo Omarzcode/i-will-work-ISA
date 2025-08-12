@@ -130,27 +130,7 @@ export default function DashboardPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Quick Actions */}
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                onClick={() => router.push("/create-request")}
-                className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Request
-              </Button>
-              <Button variant="outline" onClick={() => router.push("/my-requests")} className="flex-1 sm:flex-none">
-                <FileText className="w-4 h-4 mr-2" />
-                View All Requests
-              </Button>
-              {user?.isManager && (
-                <Button variant="outline" onClick={() => router.push("/manager")} className="flex-1 sm:flex-none">
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Manage All
-                </Button>
-              )}
-            </div>
-          </div>
+          
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
