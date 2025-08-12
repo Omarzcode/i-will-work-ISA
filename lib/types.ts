@@ -13,6 +13,18 @@ export interface MaintenanceRequest {
   status: string
   timestamp: any
   imageUrl?: string
+  rating?: number
+  feedback?: string
+  cancelReason?: string
+}
+
+export interface Notification {
+  id: string
+  title: string
+  message: string
+  timestamp: any
+  read: boolean
+  type: "info" | "success" | "warning" | "error"
 }
 
 export const PROBLEM_TYPES = [
@@ -21,18 +33,7 @@ export const PROBLEM_TYPES = [
   "Electrical",
   "Equipment Malfunction",
   "Cleaning",
-  "Furniture Repair",
-  "Lighting",
-  "Security System",
-  "Internet/WiFi",
+  "Furniture",
+  "Security",
   "Other",
 ]
-
-export interface Notification {
-  id: string
-  title: string
-  message: string
-  timestamp: any
-  read: boolean
-  type: "request_update" | "new_request" | "system"
-}

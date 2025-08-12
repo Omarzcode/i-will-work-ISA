@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore"
+import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
@@ -12,18 +12,32 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, FileText, Calendar, ImageIcon, Plus, Eye } from "lucide-react"
+import { Search, FileText, Calendar, ImageIcon, Plus, Eye, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 export default function MyRequestsPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (user && !user.isManager) {
@@ -64,6 +78,33 @@ export default function MyRequestsPage() {
 
     setFilteredRequests(filtered)
   }, [searchQuery, statusFilter, requests])
+
+  const handleCancelRequest = async (requestId: string) => {
+    if (!requestId) return
+
+    setCancellingId(requestId)
+    try {
+      await deleteDoc(doc(db, "requests", requestId))
+      toast({
+        title: "Request Cancelled",
+        description: "Your maintenance request has been cancelled and removed.",
+        variant: "default",
+      })
+    } catch (error) {
+      console.error("Error cancelling request:", error)
+      toast({
+        title: "Error",
+        description: "Failed to cancel the request. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  const canCancelRequest = (status: string) => {
+    return status === "قيد المراجعة" || status === "تمت الموافقة"
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -199,53 +240,84 @@ export default function MyRequestsPage() {
                           )}
                         </div>
 
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
-                              <Eye className="w-4 h-4 mr-1" />
-                              View Details
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Request Details</DialogTitle>
-                            </DialogHeader>
-                            {selectedRequest && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-700">Problem Type</label>
-                                    <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
+                        <div className="flex items-center gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
+                                <Eye className="w-4 h-4 mr-1" />
+                                View Details
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>Request Details</DialogTitle>
+                              </DialogHeader>
+                              {selectedRequest && (
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Problem Type</label>
+                                      <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Status</label>
+                                      <Badge className={getStatusColor(selectedRequest.status)}>
+                                        {getStatusText(selectedRequest.status)}
+                                      </Badge>
+                                    </div>
                                   </div>
                                   <div>
-                                    <label className="text-sm font-medium text-gray-700">Status</label>
-                                    <Badge className={getStatusColor(selectedRequest.status)}>
-                                      {getStatusText(selectedRequest.status)}
-                                    </Badge>
+                                    <label className="text-sm font-medium text-gray-700">Description</label>
+                                    <p className="text-sm text-gray-900 mt-1">{selectedRequest.description}</p>
                                   </div>
-                                </div>
-                                <div>
-                                  <label className="text-sm font-medium text-gray-700">Description</label>
-                                  <p className="text-sm text-gray-900 mt-1">{selectedRequest.description}</p>
-                                </div>
-                                {selectedRequest.imageUrl && (
+                                  {selectedRequest.imageUrl && (
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Attached Photo</label>
+                                      <img
+                                        src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                        alt="Request attachment"
+                                        className="mt-2 max-w-full h-64 object-cover rounded-lg border"
+                                      />
+                                    </div>
+                                  )}
                                   <div>
-                                    <label className="text-sm font-medium text-gray-700">Attached Photo</label>
-                                    <img
-                                      src={selectedRequest.imageUrl || "/placeholder.svg"}
-                                      alt="Request attachment"
-                                      className="mt-2 max-w-full h-64 object-cover rounded-lg border"
-                                    />
+                                    <label className="text-sm font-medium text-gray-700">Submitted</label>
+                                    <p className="text-sm text-gray-900">{formatDate(selectedRequest.timestamp)}</p>
                                   </div>
-                                )}
-                                <div>
-                                  <label className="text-sm font-medium text-gray-700">Submitted</label>
-                                  <p className="text-sm text-gray-900">{formatDate(selectedRequest.timestamp)}</p>
                                 </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
+                              )}
+                            </DialogContent>
+                          </Dialog>
+
+                          {canCancelRequest(request.status) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="destructive" disabled={cancellingId === request.id}>
+                                  <Trash2 className="w-4 h-4 mr-1" />
+                                  {cancellingId === request.id ? "Cancelling..." : "Cancel Request"}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancel Request</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to cancel this maintenance request? This action cannot be
+                                    undone and the request will be permanently removed from the system.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Keep Request</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleCancelRequest(request.id!)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Cancel Request
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore"
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
@@ -11,22 +11,28 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, FileText, Calendar, ImageIcon, Building, Eye } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ManagerPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
   useEffect(() => {
     if (user?.isManager) {
-      const requestsQuery = query(collection(db, "requests"), orderBy("timestamp", "desc"))
+      const requestsQuery = query(
+        collection(db, "requests"),
+        where("branchCode", "==", user.branchCode),
+        orderBy("timestamp", "desc"),
+      )
 
       const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
         const requestsData = snapshot.docs.map((doc) => ({
@@ -49,8 +55,7 @@ export default function ManagerPage() {
       filtered = filtered.filter(
         (request) =>
           request.problemType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          request.branchCode.toLowerCase().includes(searchQuery.toLowerCase()),
+          request.description.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
 
@@ -61,7 +66,8 @@ export default function ManagerPage() {
     setFilteredRequests(filtered)
   }, [searchQuery, statusFilter, requests])
 
-  const updateRequestStatus = async (requestId: string, newStatus: string) => {
+  const handleStatusUpdate = async (requestId: string, newStatus: string) => {
+    setUpdatingStatus(requestId)
     try {
       await updateDoc(doc(db, "requests", requestId), {
         status: newStatus,
@@ -74,9 +80,11 @@ export default function ManagerPage() {
       console.error("Error updating status:", error)
       toast({
         title: "Error",
-        description: "Failed to update request status.",
+        description: "Failed to update status. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setUpdatingStatus(null)
     }
   }
 
@@ -97,6 +105,23 @@ export default function ManagerPage() {
     }
   }
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "قيد المراجعة":
+        return "Under Review"
+      case "تمت الموافقة":
+        return "Approved"
+      case "قيد التنفيذ":
+        return "In Progress"
+      case "تم الإنجاز":
+        return "Completed"
+      case "مرفوض":
+        return "Rejected"
+      default:
+        return status
+    }
+  }
+
   const formatDate = (timestamp: any) => {
     if (!timestamp) return ""
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
@@ -109,17 +134,14 @@ export default function ManagerPage() {
     })
   }
 
-  if (!user?.isManager) {
-    return (
-      <AppLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-gray-600">You don't have permission to access this page.</p>
-          </div>
-        </div>
-      </AppLayout>
-    )
+  const getStatusStats = () => {
+    const stats = {
+      pending: requests.filter((r) => r.status === "قيد المراجعة").length,
+      approved: requests.filter((r) => r.status === "تمت الموافقة").length,
+      inProgress: requests.filter((r) => r.status === "قيد التنفيذ").length,
+      completed: requests.filter((r) => r.status === "تم الإنجاز").length,
+    }
+    return stats
   }
 
   if (isLoading) {
@@ -132,13 +154,74 @@ export default function ManagerPage() {
     )
   }
 
+  const stats = getStatusStats()
+
   return (
     <AppLayout>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Manage All Requests</h1>
-            <p className="text-gray-600 mt-2">Review and manage maintenance requests from all branches</p>
+            <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
+            <p className="text-gray-600 mt-2">Manage maintenance requests for your branch</p>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <Clock className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Pending Review</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <CheckCircle className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Approved</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.approved}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <AlertCircle className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">In Progress</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.inProgress}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Filters */}
@@ -173,7 +256,7 @@ export default function ManagerPage() {
             {filteredRequests.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">No requests found</p>
                 </CardContent>
               </Card>
@@ -184,12 +267,8 @@ export default function ManagerPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="flex items-center gap-2 text-blue-600">
-                            <Building className="w-4 h-4" />
-                            <span className="font-medium">{request.branchCode}</span>
-                          </div>
                           <h3 className="text-lg font-semibold text-gray-900">{request.problemType}</h3>
-                          <Badge className={getStatusColor(request.status)}>{request.status}</Badge>
+                          <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
                         </div>
 
                         <p className="text-gray-600 mb-4 line-clamp-2">{request.description}</p>
@@ -207,28 +286,29 @@ export default function ManagerPage() {
                           )}
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
-                                <Eye className="w-4 h-4 mr-1" />
                                 View Details
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl">
                               <DialogHeader>
-                                <DialogTitle>Request Details</DialogTitle>
+                                <DialogTitle>Request Details & Status Update</DialogTitle>
                               </DialogHeader>
                               {selectedRequest && (
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                      <label className="text-sm font-medium text-gray-700">Branch</label>
-                                      <p className="text-sm text-gray-900">{selectedRequest.branchCode}</p>
-                                    </div>
-                                    <div>
                                       <label className="text-sm font-medium text-gray-700">Problem Type</label>
                                       <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Current Status</label>
+                                      <Badge className={getStatusColor(selectedRequest.status)}>
+                                        {getStatusText(selectedRequest.status)}
+                                      </Badge>
                                     </div>
                                   </div>
                                   <div>
@@ -247,42 +327,89 @@ export default function ManagerPage() {
                                   )}
                                   <div>
                                     <label className="text-sm font-medium text-gray-700">Update Status</label>
-                                    <Select
-                                      value={selectedRequest.status}
-                                      onValueChange={(value) => updateRequestStatus(selectedRequest.id!, value)}
-                                    >
-                                      <SelectTrigger className="mt-1">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="قيد المراجعة">Under Review</SelectItem>
-                                        <SelectItem value="تمت الموافقة">Approved</SelectItem>
-                                        <SelectItem value="قيد التنفيذ">In Progress</SelectItem>
-                                        <SelectItem value="تم الإنجاز">Completed</SelectItem>
-                                        <SelectItem value="مرفوض">Rejected</SelectItem>
-                                      </SelectContent>
-                                    </Select>
+                                    <div className="flex gap-2 mt-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "تمت الموافقة")}
+                                        disabled={updatingStatus === selectedRequest.id}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                      >
+                                        Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "قيد التنفيذ")}
+                                        disabled={updatingStatus === selectedRequest.id}
+                                        className="bg-orange-600 hover:bg-orange-700"
+                                      >
+                                        Start Work
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "تم الإنجاز")}
+                                        disabled={updatingStatus === selectedRequest.id}
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        Complete
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => handleStatusUpdate(selectedRequest.id!, "مرفوض")}
+                                        disabled={updatingStatus === selectedRequest.id}
+                                      >
+                                        Reject
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
                               )}
                             </DialogContent>
                           </Dialog>
 
-                          <Select
-                            value={request.status}
-                            onValueChange={(value) => updateRequestStatus(request.id!, value)}
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="قيد المراجعة">Under Review</SelectItem>
-                              <SelectItem value="تمت الموافقة">Approved</SelectItem>
-                              <SelectItem value="قيد التنفيذ">In Progress</SelectItem>
-                              <SelectItem value="تم الإنجاز">Completed</SelectItem>
-                              <SelectItem value="مرفوض">Rejected</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          {/* Quick Status Update Buttons */}
+                          {request.status === "قيد المراجعة" && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleStatusUpdate(request.id!, "تمت الموافقة")}
+                                disabled={updatingStatus === request.id}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleStatusUpdate(request.id!, "مرفوض")}
+                                disabled={updatingStatus === request.id}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
+
+                          {request.status === "تمت الموافقة" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleStatusUpdate(request.id!, "قيد التنفيذ")}
+                              disabled={updatingStatus === request.id}
+                              className="bg-orange-600 hover:bg-orange-700"
+                            >
+                              Start Work
+                            </Button>
+                          )}
+
+                          {request.status === "قيد التنفيذ" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleStatusUpdate(request.id!, "تم الإنجاز")}
+                              disabled={updatingStatus === request.id}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Mark Complete
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
