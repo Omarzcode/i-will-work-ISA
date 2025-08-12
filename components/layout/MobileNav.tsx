@@ -1,0 +1,134 @@
+"use client"
+
+import { useRouter, usePathname } from "next/navigation"
+import { useAuth } from "@/hooks/useAuth"
+import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Home, FileText, Plus, Settings, BarChart3, Users, Building, Coffee, X } from "lucide-react"
+
+interface MobileNavProps {
+  open: boolean
+  onClose: () => void
+}
+
+const navigationItems = [
+  {
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: Home,
+    roles: ["user", "manager"],
+  },
+  {
+    title: "Create Request",
+    href: "/create-request",
+    icon: Plus,
+    roles: ["user"],
+  },
+  {
+    title: "My Requests",
+    href: "/my-requests",
+    icon: FileText,
+    roles: ["user"],
+  },
+  {
+    title: "Manage Requests",
+    href: "/manager",
+    icon: Users,
+    roles: ["manager"],
+  },
+  {
+    title: "Analytics",
+    href: "/analytics",
+    icon: BarChart3,
+    roles: ["manager"],
+  },
+]
+
+export function MobileNav({ open, onClose }: MobileNavProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { user } = useAuth()
+
+  const filteredItems = navigationItems.filter((item) => {
+    if (user?.isManager) {
+      return item.roles.includes("manager")
+    }
+    return item.roles.includes("user")
+  })
+
+  const handleNavigation = (href: string) => {
+    router.push(href)
+    onClose()
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent side="left" className="w-80 p-0">
+        <SheetHeader className="p-6 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Coffee className="h-8 w-8 text-blue-600" />
+              <div>
+                <SheetTitle className="text-lg font-bold text-gray-900">Caribou</SheetTitle>
+                <p className="text-xs text-gray-500">Maintenance System</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </SheetHeader>
+
+        {/* User Info */}
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <Building className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">{user?.isManager ? "Manager" : user?.branchCode}</p>
+              <p className="text-xs text-gray-500">{user?.email}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <ScrollArea className="flex-1 px-3 py-4">
+          <nav className="space-y-2">
+            {filteredItems.map((item) => {
+              const isActive = pathname === item.href
+              const Icon = item.icon
+
+              return (
+                <Button
+                  key={item.href}
+                  variant={isActive ? "default" : "ghost"}
+                  className={`w-full justify-start gap-3 ${
+                    isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                  onClick={() => handleNavigation(item.href)}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.title}
+                </Button>
+              )
+            })}
+          </nav>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className="p-4 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-gray-700 hover:bg-gray-100"
+            onClick={() => handleNavigation("/settings")}
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
