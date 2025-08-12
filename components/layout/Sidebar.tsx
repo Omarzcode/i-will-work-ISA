@@ -53,11 +53,11 @@ export function Sidebar() {
   })
 
   return (
-    <div className="flex h-full w-full flex-col bg-white border-r">
+    <div className="flex h-full w-full flex-col bg-white border-r rounded-r-3xl">
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center p-1">
+          <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center p-1">
             <Image
               src="/maintenance-logo.png"
               alt="Maintenance System"
@@ -76,8 +76,8 @@ export function Sidebar() {
       {/* User Info */}
       <div className="p-4 border-b">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-            <Building className="w-5 h-5 text-teal-600" />
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <Building className="w-5 h-5 text-blue-600" />
           </div>
           <div>
             <p className="text-sm font-medium text-gray-900">{user?.isManager ? "Manager" : user?.branchCode}</p>
@@ -97,8 +97,8 @@ export function Sidebar() {
               <Button
                 key={item.href}
                 variant={isActive ? "default" : "ghost"}
-                className={`w-full justify-start gap-3 ${
-                  isActive ? "bg-teal-600 text-white hover:bg-teal-700" : "text-gray-700 hover:bg-gray-100"
+                className={`w-full justify-start gap-3 rounded-2xl ${
+                  isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-700 hover:bg-gray-100"
                 }`}
                 onClick={() => router.push(item.href)}
               >

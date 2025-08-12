@@ -65,12 +65,12 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent side="left" className="w-80 p-0 rounded-r-3xl">
         <div className="flex h-full flex-col">
           {/* Header */}
           <SheetHeader className="flex-row items-center justify-between p-6 border-b">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center p-1">
+              <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center p-1">
                 <Image
                   src="/maintenance-logo.png"
                   alt="Maintenance System"
@@ -84,7 +84,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                 <p className="text-xs text-gray-500">Maintenance System</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-2xl">
               <X className="h-5 w-5" />
             </Button>
           </SheetHeader>
@@ -92,8 +92,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
           {/* User Info */}
           <div className="p-6 border-b">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                <Building className="w-5 h-5 text-teal-600" />
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Building className="w-5 h-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">{user?.isManager ? "Manager" : user?.branchCode}</p>
@@ -113,8 +113,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                   <Button
                     key={item.href}
                     variant={isActive ? "default" : "ghost"}
-                    className={`w-full justify-start gap-3 ${
-                      isActive ? "bg-teal-600 text-white hover:bg-teal-700" : "text-gray-700 hover:bg-gray-100"
+                    className={`w-full justify-start gap-3 rounded-2xl ${
+                      isActive ? "bg-blue-600 text-white hover:bg-blue-700" : "text-gray-700 hover:bg-gray-100"
                     }`}
                     onClick={() => handleNavigation(item.href)}
                   >

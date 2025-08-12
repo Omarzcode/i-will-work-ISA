@@ -48,7 +48,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-teal-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     )
   }
@@ -61,13 +61,13 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <div className="lg:hidden">
-        <div className="flex items-center justify-between p-4 bg-white border-b">
+        <div className="flex items-center justify-between p-4 bg-white border-b rounded-b-3xl">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="rounded-2xl">
               <Menu className="h-6 w-6" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center p-1">
+              <div className="w-8 h-8 bg-blue-100 rounded-2xl flex items-center justify-center p-1">
                 <Image
                   src="/maintenance-logo.png"
                   alt="Maintenance System"
@@ -81,7 +81,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)}>
+            <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)} className="rounded-2xl">
               <LogOut className="h-5 w-5" />
             </Button>
           </div>
@@ -99,7 +99,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Main Content */}
         <div className="flex-1 ml-64">
           {/* Top Bar */}
-          <div className="bg-white border-b px-6 py-4">
+          <div className="bg-white border-b px-6 py-4 rounded-bl-3xl">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
@@ -109,7 +109,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
               <div className="flex items-center gap-4">
                 <NotificationBell />
-                <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)}>
+                <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)} className="rounded-2xl">
                   <LogOut className="h-5 w-5" />
                 </Button>
               </div>
@@ -117,18 +117,22 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           {/* Page Content */}
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 p-6">
+            <div className="bg-white rounded-3xl shadow-sm border min-h-[calc(100vh-200px)] p-6">{children}</div>
+          </main>
         </div>
       </div>
 
       {/* Mobile Content */}
       <div className="lg:hidden">
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 p-4">
+          <div className="bg-white rounded-3xl shadow-sm border min-h-[calc(100vh-120px)] p-4">{children}</div>
+        </main>
       </div>
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-3xl">
           <DialogHeader>
             <DialogTitle>Confirm Logout</DialogTitle>
             <DialogDescription>
@@ -136,10 +140,10 @@ export function AppLayout({ children }: AppLayoutProps) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLogoutDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setLogoutDialogOpen(false)} className="rounded-2xl">
               Cancel
             </Button>
-            <Button onClick={handleLogout} className="bg-red-600 hover:bg-red-700">
+            <Button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 rounded-2xl">
               Logout
             </Button>
           </DialogFooter>
