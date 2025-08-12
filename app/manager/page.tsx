@@ -1,17 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/hooks/useAuth"
-import { useNotifications } from "@/hooks/useNotifications"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAuth } from "@/hooks/useAuth"
 import { db } from "@/lib/firebase"
-import { collection, query, onSnapshot, doc, updateDoc, serverTimestamp, orderBy } from "firebase/firestore"
-import { format } from "date-fns"
+import { collection, query, onSnapshot, orderBy, updateDoc, doc, serverTimestamp } from "firebase/firestore"
+import { createBranchNotification } from "@/hooks/useNotifications"
+import { toast } from "sonner"
+import { Clock, MapPin, User, AlertCircle, CheckCircle, XCircle, Wrench } from "lucide-react"
 
 interface MaintenanceRequest {
   id: string
@@ -19,35 +19,51 @@ interface MaintenanceRequest {
   description: string
   problemType: string
   priority: "low" | "medium" | "high" | "urgent"
-  status: "pending" | "in-progress" | "completed" | "cancelled"
   location: string
-  createdAt: any
-  updatedAt: any
+  status: "pending" | "in-progress" | "completed" | "cancelled"
   userId: string
   userEmail: string
+  userName: string
   branchCode: string
   branchName: string
-  imageUrls: string[]
+  createdAt: any
+  updatedAt: any
+  images?: string[]
+  managerNotes: string
   rating?: number
   feedback?: string
-  managerNotes?: string
+}
+
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
+  { value: "in-progress", label: "In Progress", icon: Wrench, color: "bg-blue-100 text-blue-800" },
+  { value: "completed", label: "Completed", icon: CheckCircle, color: "bg-green-100 text-green-800" },
+  { value: "cancelled", label: "Cancelled", icon: XCircle, color: "bg-red-100 text-red-800" },
+]
+
+const PRIORITY_COLORS = {
+  low: "bg-green-100 text-green-800",
+  medium: "bg-yellow-100 text-yellow-800",
+  high: "bg-orange-100 text-orange-800",
+  urgent: "bg-red-100 text-red-800",
 }
 
 export default function ManagerPage() {
   const { user } = useAuth()
-  const { createNotification } = useNotifications()
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
-  const [managerNotes, setManagerNotes] = useState<{ [key: string]: string }>({})
+
+  console.log("ManagerPage: Component loaded, user:", user?.email, "role:", user?.role)
 
   useEffect(() => {
     if (!user || user.role !== "manager") {
-      console.log("ManagerPage: User not authorized or not manager")
+      console.log("ManagerPage: User not manager or not logged in")
+      setLoading(false)
       return
     }
 
-    console.log("ManagerPage: Setting up requests listener for manager:", user.email)
+    console.log("ManagerPage: Setting up requests listener for manager")
 
     const requestsQuery = query(collection(db, "requests"), orderBy("createdAt", "desc"))
 
@@ -56,17 +72,19 @@ export default function ManagerPage() {
       (snapshot) => {
         console.log("ManagerPage: Received snapshot with", snapshot.docs.length, "requests")
 
-        const requestsData = snapshot.docs.map((doc) => {
+        const requestsList = snapshot.docs.map((doc) => {
           const data = doc.data()
-          console.log("ManagerPage: Processing request:", data)
+          console.log("ManagerPage: Processing request:", doc.id, data.title)
+
           return {
             id: doc.id,
             ...data,
           } as MaintenanceRequest
         })
 
-        setRequests(requestsData)
+        setRequests(requestsList)
         setLoading(false)
+        console.log("ManagerPage: Updated requests list, total:", requestsList.length)
       },
       (error) => {
         console.error("ManagerPage: Error listening to requests:", error)
@@ -80,117 +98,105 @@ export default function ManagerPage() {
     }
   }, [user])
 
-  const updateRequestStatus = async (requestId: string, newStatus: string, request: MaintenanceRequest) => {
-    if (!user) return
+  const updateRequestStatus = async (requestId: string, newStatus: string, notes = "") => {
+    if (!user) {
+      console.error("ManagerPage: No user found for status update")
+      return
+    }
 
-    console.log("ManagerPage: Updating request status:", { requestId, newStatus, request: request.title })
+    console.log("ManagerPage: Updating request status:", requestId, "to:", newStatus)
     setUpdatingStatus(requestId)
 
     try {
-      const updateData: any = {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) {
+        console.error("ManagerPage: Request not found:", requestId)
+        return
+      }
+
+      console.log("ManagerPage: Found request for update:", request.title, "Branch:", request.branchCode)
+
+      // Update the request in Firestore
+      await updateDoc(doc(db, "requests", requestId), {
         status: newStatus,
+        managerNotes: notes,
         updatedAt: serverTimestamp(),
-      }
+      })
 
-      // Add manager notes if provided
-      const notes = managerNotes[requestId]
-      if (notes && notes.trim()) {
-        updateData.managerNotes = notes.trim()
-      }
+      console.log("ManagerPage: Request updated in Firestore")
 
-      console.log("ManagerPage: Updating request with data:", updateData)
-      await updateDoc(doc(db, "requests", requestId), updateData)
-
-      // Create notification for the branch user
+      // Create notification for branch user
       try {
-        console.log("ManagerPage: Creating notification for branch user")
-        let notificationMessage = `Your request "${request.title}" has been updated to ${newStatus}`
+        console.log("ManagerPage: Creating branch notification for:", request.branchCode)
 
-        if (notes && notes.trim()) {
-          notificationMessage += `. Manager notes: ${notes.trim()}`
+        const statusLabels = {
+          pending: "Pending",
+          "in-progress": "In Progress",
+          completed: "Completed",
+          cancelled: "Cancelled",
         }
 
-        await createNotification({
-          title: "Request Status Updated",
-          message: notificationMessage,
-          branchCode: request.branchCode,
-          isForManager: false,
-        })
-        console.log("ManagerPage: Successfully created branch user notification")
+        const notificationTitle = "Request Status Updated"
+        const notificationMessage = `Your request "${request.title}" has been updated to ${statusLabels[newStatus as keyof typeof statusLabels]}${notes ? `. Manager notes: ${notes}` : ""}`
+
+        await createBranchNotification(notificationTitle, notificationMessage, request.branchCode, requestId)
+
+        console.log("ManagerPage: Branch notification created successfully")
       } catch (notificationError) {
-        console.error("ManagerPage: Error creating notification:", notificationError)
+        console.error("ManagerPage: Error creating branch notification:", notificationError)
         // Don't fail the status update if notification fails
       }
 
-      // Clear the manager notes for this request
-      setManagerNotes((prev) => {
-        const updated = { ...prev }
-        delete updated[requestId]
-        return updated
-      })
-
-      console.log("ManagerPage: Successfully updated request status")
+      toast.success("Request status updated successfully!")
+      console.log("ManagerPage: Status update completed successfully")
     } catch (error) {
       console.error("ManagerPage: Error updating request status:", error)
+      toast.error("Failed to update request status")
     } finally {
       setUpdatingStatus(null)
     }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "high":
-        return "bg-orange-100 text-orange-800 border-orange-200"
-      case "medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "low":
-        return "bg-green-100 text-green-800 border-green-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "in-progress":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "completed":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "cancelled":
-        return "bg-red-100 text-red-800 border-red-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return "Unknown"
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+      return date.toLocaleDateString() + " " + date.toLocaleTimeString()
+    } catch (error) {
+      console.error("ManagerPage: Error formatting date:", error)
+      return "Unknown"
     }
   }
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Alert>
-          <AlertDescription>Please log in to access the manager dashboard.</AlertDescription>
-        </Alert>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Please log in</h2>
+          <p className="text-gray-600">You need to be logged in to access the manager dashboard.</p>
+        </div>
       </div>
     )
   }
 
   if (user.role !== "manager") {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Alert>
-          <AlertDescription>You don't have permission to access this page.</AlertDescription>
-        </Alert>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-gray-600">You need manager privileges to access this page.</p>
+        </div>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">Loading requests...</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading requests...</p>
+        </div>
       </div>
     )
   }
@@ -199,140 +205,169 @@ export default function ManagerPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-blue-900 mb-2">Manager Dashboard</h1>
-        <p className="text-gray-600">Manage all maintenance requests across branches</p>
+        <p className="text-blue-600">Manage all maintenance requests across branches</p>
       </div>
 
-      {requests.length === 0 ? (
-        <Card className="rounded-xl">
-          <CardContent className="p-8 text-center">
-            <p className="text-gray-500">No maintenance requests found.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {requests.map((request) => (
-            <Card key={request.id} className="rounded-xl">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl text-blue-900">{request.title}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {request.branchName} • {request.userEmail}
-                      {request.location && ` • ${request.location}`}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge className={`rounded-full ${getPriorityColor(request.priority)}`}>{request.priority}</Badge>
-                    <Badge className={`rounded-full ${getStatusColor(request.status)}`}>{request.status}</Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-gray-700 mb-2">{request.description}</p>
-                  <div className="flex gap-4 text-sm text-gray-500">
-                    <span>Type: {request.problemType}</span>
-                    <span>
-                      Created:{" "}
-                      {request.createdAt ? format(request.createdAt.toDate(), "MMM d, yyyy h:mm a") : "Unknown"}
-                    </span>
-                  </div>
-                </div>
+      <div className="grid gap-6">
+        {requests.length === 0 ? (
+          <Card className="rounded-xl border-blue-200">
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Requests Found</h3>
+              <p className="text-gray-500">There are no maintenance requests at the moment.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          requests.map((request) => {
+            const StatusIcon = STATUS_OPTIONS.find((s) => s.value === request.status)?.icon || Clock
 
-                {request.imageUrls && request.imageUrls.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-2">Images:</h4>
-                    <div className="flex gap-2 flex-wrap">
-                      {request.imageUrls.map((url, index) => (
-                        <img
-                          key={index}
-                          src={url || "/placeholder.svg"}
-                          alt={`Request image ${index + 1}`}
-                          className="w-20 h-20 object-cover rounded-lg border"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {request.managerNotes && (
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-1">Manager Notes:</h4>
-                    <p className="text-blue-800 text-sm">{request.managerNotes}</p>
-                  </div>
-                )}
-
-                {request.rating && (
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <h4 className="font-medium text-green-900 mb-1">User Feedback:</h4>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-green-800">Rating:</span>
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span
-                            key={star}
-                            className={`text-lg ${star <= request.rating! ? "text-yellow-400" : "text-gray-300"}`}
-                          >
-                            ★
-                          </span>
-                        ))}
+            return (
+              <Card key={request.id} className="rounded-xl border-blue-200 hover:shadow-lg transition-shadow">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-t-xl">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-blue-900 mb-2">{request.title}</CardTitle>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge className={PRIORITY_COLORS[request.priority]}>{request.priority.toUpperCase()}</Badge>
+                        <Badge className={STATUS_OPTIONS.find((s) => s.value === request.status)?.color}>
+                          <StatusIcon className="w-3 h-3 mr-1" />
+                          {STATUS_OPTIONS.find((s) => s.value === request.status)?.label}
+                        </Badge>
+                        <Badge variant="outline" className="border-blue-200 text-blue-700">
+                          {request.problemType}
+                        </Badge>
                       </div>
                     </div>
-                    {request.feedback && <p className="text-green-800 text-sm">{request.feedback}</p>}
                   </div>
-                )}
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold text-blue-900 mb-2">Request Details</h4>
+                        <p className="text-gray-700 mb-3">{request.description}</p>
 
-                <div className="flex gap-4 items-end">
-                  <div className="flex-1">
-                    <Label htmlFor={`status-${request.id}`}>Update Status</Label>
-                    <Select
-                      value={request.status}
-                      onValueChange={(value) => updateRequestStatus(request.id, value, request)}
-                      disabled={updatingStatus === request.id}
-                    >
-                      <SelectTrigger className="rounded-lg">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-lg">
-                        <SelectItem value="pending" className="rounded-lg">
-                          Pending
-                        </SelectItem>
-                        <SelectItem value="in-progress" className="rounded-lg">
-                          In Progress
-                        </SelectItem>
-                        <SelectItem value="completed" className="rounded-lg">
-                          Completed
-                        </SelectItem>
-                        <SelectItem value="cancelled" className="rounded-lg">
-                          Cancelled
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1">
-                    <Label htmlFor={`notes-${request.id}`}>Manager Notes (Optional)</Label>
-                    <Textarea
-                      id={`notes-${request.id}`}
-                      value={managerNotes[request.id] || ""}
-                      onChange={(e) =>
-                        setManagerNotes((prev) => ({
-                          ...prev,
-                          [request.id]: e.target.value,
-                        }))
-                      }
-                      placeholder="Add notes for the user..."
-                      className="rounded-lg"
-                      rows={2}
-                    />
-                  </div>
-                </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center text-gray-600">
+                            <MapPin className="w-4 h-4 mr-2 text-blue-500" />
+                            <span>{request.location}</span>
+                          </div>
+                          <div className="flex items-center text-gray-600">
+                            <User className="w-4 h-4 mr-2 text-blue-500" />
+                            <span>
+                              {request.userName} ({request.userEmail})
+                            </span>
+                          </div>
+                          <div className="flex items-center text-gray-600">
+                            <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                            <span>Created: {formatDate(request.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
 
-                {updatingStatus === request.id && <div className="text-sm text-blue-600">Updating status...</div>}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                      <div>
+                        <h4 className="font-semibold text-blue-900 mb-2">Branch Information</h4>
+                        <p className="text-gray-700">
+                          {request.branchName} ({request.branchCode})
+                        </p>
+                      </div>
+
+                      {request.images && request.images.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-blue-900 mb-2">Images</h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {request.images.map((imageUrl, index) => (
+                              <img
+                                key={index}
+                                src={imageUrl || "/placeholder.svg"}
+                                alt={`Request image ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg border border-blue-200"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {request.rating && (
+                        <div>
+                          <h4 className="font-semibold text-blue-900 mb-2">User Rating</h4>
+                          <div className="flex items-center gap-2">
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <span
+                                  key={star}
+                                  className={`text-lg ${star <= request.rating! ? "text-yellow-400" : "text-gray-300"}`}
+                                >
+                                  ★
+                                </span>
+                              ))}
+                            </div>
+                            <span className="text-sm text-gray-600">({request.rating}/5)</span>
+                          </div>
+                          {request.feedback && (
+                            <p className="text-gray-700 mt-2 text-sm italic">"{request.feedback}"</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold text-blue-900 mb-2">Update Status</h4>
+                        <Select
+                          value={request.status}
+                          onValueChange={(newStatus) => {
+                            const notes = request.managerNotes || ""
+                            updateRequestStatus(request.id, newStatus, notes)
+                          }}
+                          disabled={updatingStatus === request.id}
+                        >
+                          <SelectTrigger className="rounded-lg border-blue-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-lg">
+                            {STATUS_OPTIONS.map((status) => (
+                              <SelectItem key={status.value} value={status.value} className="rounded-md">
+                                <div className="flex items-center">
+                                  <status.icon className="w-4 h-4 mr-2" />
+                                  {status.label}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-blue-900 mb-2">Manager Notes</h4>
+                        <Textarea
+                          value={request.managerNotes}
+                          onChange={(e) => {
+                            // Update local state immediately for better UX
+                            setRequests((prev) =>
+                              prev.map((r) => (r.id === request.id ? { ...r, managerNotes: e.target.value } : r)),
+                            )
+                          }}
+                          placeholder="Add notes about this request..."
+                          rows={4}
+                          className="rounded-lg border-blue-200 focus:border-blue-500"
+                        />
+                        <Button
+                          onClick={() => updateRequestStatus(request.id, request.status, request.managerNotes)}
+                          disabled={updatingStatus === request.id}
+                          className="mt-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                        >
+                          {updatingStatus === request.id ? "Updating..." : "Save Notes"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }

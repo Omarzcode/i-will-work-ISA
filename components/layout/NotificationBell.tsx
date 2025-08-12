@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/useAuth"
 import { db } from "@/lib/firebase"
 import { collection, query, where, onSnapshot, orderBy, updateDoc, doc } from "firebase/firestore"
@@ -15,9 +15,9 @@ interface Notification {
   title: string
   message: string
   timestamp: any
-  isRead: boolean
-  branchCode?: string
-  isForManager?: boolean
+  read: boolean
+  type: "request_created" | "status_updated"
+  requestId?: string
 }
 
 export function NotificationBell() {
@@ -32,56 +32,64 @@ export function NotificationBell() {
       return
     }
 
-    console.log("NotificationBell: Setting up notifications for user:", {
-      email: user.email,
-      role: user.role,
-      branchCode: user.branchCode,
-    })
+    console.log(
+      "NotificationBell: Setting up notifications for user:",
+      user.email,
+      "Role:",
+      user.role,
+      "Branch:",
+      user.branchCode,
+    )
 
-    let notificationQuery
+    let notificationsQuery
 
     if (user.role === "manager") {
-      // Managers see all notifications marked for managers
-      notificationQuery = query(
+      // Managers see all notifications for managers
+      notificationsQuery = query(
         collection(db, "notifications"),
         where("isForManager", "==", true),
         orderBy("timestamp", "desc"),
       )
-      console.log("NotificationBell: Created manager query")
+      console.log("NotificationBell: Manager query created")
     } else {
       // Branch users see notifications for their branch
-      notificationQuery = query(
+      notificationsQuery = query(
         collection(db, "notifications"),
         where("branchCode", "==", user.branchCode),
         where("isForManager", "==", false),
         orderBy("timestamp", "desc"),
       )
-      console.log("NotificationBell: Created branch user query for branch:", user.branchCode)
+      console.log("NotificationBell: Branch user query created for branch:", user.branchCode)
     }
 
     const unsubscribe = onSnapshot(
-      notificationQuery,
+      notificationsQuery,
       (snapshot) => {
         console.log("NotificationBell: Received snapshot with", snapshot.docs.length, "notifications")
 
-        const notificationData = snapshot.docs.map((doc) => {
+        const notificationsList = snapshot.docs.map((doc) => {
           const data = doc.data()
-          console.log("NotificationBell: Processing notification:", data)
+          console.log("NotificationBell: Processing notification:", doc.id, data)
+
           return {
             id: doc.id,
-            ...data,
-          } as Notification
+            title: data.title || "Notification",
+            message: data.message || "",
+            timestamp: data.timestamp,
+            read: data.read || false,
+            type: data.type || "request_created",
+            requestId: data.requestId,
+          }
         })
 
-        setNotifications(notificationData)
-
-        const unread = notificationData.filter((n) => !n.isRead).length
+        setNotifications(notificationsList)
+        const unread = notificationsList.filter((n) => !n.read).length
         setUnreadCount(unread)
-        console.log("NotificationBell: Set unread count to:", unread)
+        console.log("NotificationBell: Updated notifications count:", notificationsList.length, "Unread:", unread)
 
         // Show browser notification for new unread notifications
         if (unread > 0 && "Notification" in window && Notification.permission === "granted") {
-          const latestUnread = notificationData.find((n) => !n.isRead)
+          const latestUnread = notificationsList.find((n) => !n.read)
           if (latestUnread) {
             new Notification(latestUnread.title, {
               body: latestUnread.message,
@@ -105,38 +113,12 @@ export function NotificationBell() {
     try {
       console.log("NotificationBell: Marking notification as read:", notificationId)
       await updateDoc(doc(db, "notifications", notificationId), {
-        isRead: true,
+        read: true,
       })
     } catch (error) {
       console.error("NotificationBell: Error marking notification as read:", error)
     }
   }
-
-  const markAllAsRead = async () => {
-    try {
-      console.log("NotificationBell: Marking all notifications as read")
-      const unreadNotifications = notifications.filter((n) => !n.isRead)
-
-      for (const notification of unreadNotifications) {
-        await updateDoc(doc(db, "notifications", notification.id), {
-          isRead: true,
-        })
-      }
-    } catch (error) {
-      console.error("NotificationBell: Error marking all notifications as read:", error)
-    }
-  }
-
-  const requestNotificationPermission = async () => {
-    if ("Notification" in window && Notification.permission === "default") {
-      const permission = await Notification.requestPermission()
-      console.log("NotificationBell: Notification permission:", permission)
-    }
-  }
-
-  useEffect(() => {
-    requestNotificationPermission()
-  }, [])
 
   const formatTimestamp = (timestamp: any) => {
     if (!timestamp) return "Just now"
@@ -156,63 +138,76 @@ export function NotificationBell() {
     }
   }
 
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window && Notification.permission === "default") {
+      const permission = await Notification.requestPermission()
+      console.log("NotificationBell: Notification permission:", permission)
+    }
+  }
+
+  useEffect(() => {
+    requestNotificationPermission()
+  }, [])
+
   if (!user) return null
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full">
-          <Bell className="h-5 w-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative rounded-full hover:bg-blue-50"
+          onClick={() => console.log("NotificationBell: Bell clicked, notifications:", notifications.length)}
+        >
+          <Bell className="h-5 w-5 text-blue-600" />
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-red-500"
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 rounded-xl" align="end">
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Notifications</h3>
-            {unreadCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={markAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-700 rounded-lg"
-              >
-                Mark all read
-              </Button>
-            )}
-          </div>
+      <PopoverContent className="w-80 p-0 rounded-xl border-blue-200" align="end">
+        <div className="p-4 border-b border-blue-100">
+          <h3 className="font-semibold text-blue-900">Notifications</h3>
+          {unreadCount > 0 && <p className="text-sm text-blue-600">{unreadCount} unread</p>}
         </div>
         <ScrollArea className="h-80">
           {notifications.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">No notifications yet</div>
+            <div className="p-4 text-center text-gray-500">
+              <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+              <p>No notifications yet</p>
+            </div>
           ) : (
             <div className="p-2">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
-                    notification.isRead
+                    notification.read
                       ? "bg-gray-50 hover:bg-gray-100"
                       : "bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500"
                   }`}
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={() => {
+                    if (!notification.read) {
+                      markAsRead(notification.id)
+                    }
+                  }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <h4 className={`font-medium text-sm ${notification.isRead ? "text-gray-700" : "text-blue-900"}`}>
+                    <h4 className={`font-medium text-sm ${notification.read ? "text-gray-700" : "text-blue-900"}`}>
                       {notification.title}
                     </h4>
                     <span className="text-xs text-gray-500 ml-2">{formatTimestamp(notification.timestamp)}</span>
                   </div>
-                  <p className={`text-sm ${notification.isRead ? "text-gray-600" : "text-blue-800"}`}>
+                  <p className={`text-sm ${notification.read ? "text-gray-600" : "text-blue-700"}`}>
                     {notification.message}
                   </p>
+                  {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>}
                 </div>
               ))}
             </div>
