@@ -70,6 +70,7 @@ export default function CreateRequestPage() {
         branchCode: branchCode,
         isForManager: true,
       })
+      console.log("Notification created for managers")
     } catch (error) {
       console.error("Error creating notification:", error)
     }
@@ -109,6 +110,8 @@ export default function CreateRequestPage() {
         userId: user?.uid || "",
       })
 
+      console.log("Request created with ID:", docRef.id)
+
       // Create notification for managers
       await createNotificationForManagers(docRef.id, problemType, user?.branchCode || "unknown")
 
@@ -145,21 +148,21 @@ export default function CreateRequestPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
           <div className="mb-6">
-            <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+            <Button variant="ghost" onClick={() => router.back()} className="mb-4 rounded-2xl">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
             <h1 className="text-2xl font-bold text-gray-900">New Request</h1>
           </div>
 
-          <Card className="max-w-2xl mx-auto">
+          <Card className="max-w-2xl mx-auto rounded-3xl">
             <CardHeader>
               <CardTitle>Create Maintenance Request</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {error && (
-                  <Alert variant="destructive">
+                  <Alert variant="destructive" className="rounded-2xl">
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
@@ -167,10 +170,10 @@ export default function CreateRequestPage() {
                 <div className="space-y-2">
                   <Label htmlFor="problemType">Issue Type</Label>
                   <Select value={problemType} onValueChange={setProblemType}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-2xl">
                       <SelectValue placeholder="Select an issue type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-2xl">
                       {PROBLEM_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
@@ -189,6 +192,7 @@ export default function CreateRequestPage() {
                     placeholder="Describe the issue in detail..."
                     rows={5}
                     disabled={isLoading}
+                    className="rounded-2xl"
                   />
                 </div>
 
@@ -199,30 +203,30 @@ export default function CreateRequestPage() {
                       <img
                         src={imagePreview || "/placeholder.svg"}
                         alt="Preview"
-                        className="w-full max-w-md h-48 object-cover rounded-lg border"
+                        className="w-full max-w-md h-48 object-cover rounded-2xl border"
                       />
                       <Button
                         type="button"
                         variant="destructive"
                         size="sm"
-                        className="absolute top-2 right-2"
+                        className="absolute top-2 right-2 rounded-xl"
                         onClick={removeImage}
                       >
                         <X className="w-4 h-4" />
                       </Button>
-                      <div className="absolute bottom-2 left-2 bg-green-600 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                      <div className="absolute bottom-2 left-2 bg-green-600 text-white px-2 py-1 rounded-xl text-xs flex items-center gap-1">
                         <CheckCircle className="w-3 h-3" />
                         Image ready
                       </div>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                    <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6">
                       <div className="text-center">
                         <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                         <div className="flex text-sm text-gray-600">
                           <label
                             htmlFor="image-upload"
-                            className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                            className="relative cursor-pointer bg-white rounded-xl font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
                           >
                             <span>Upload a photo</span>
                             <input
@@ -249,11 +253,15 @@ export default function CreateRequestPage() {
                     variant="outline"
                     onClick={() => router.back()}
                     disabled={isLoading}
-                    className="flex-1"
+                    className="flex-1 rounded-2xl"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isLoading} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-2xl"
+                  >
                     {isLoading ? (
                       <div className="flex items-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

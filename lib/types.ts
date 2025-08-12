@@ -20,7 +20,7 @@ export interface MaintenanceRequest {
 }
 
 export interface Notification {
-  id?: string
+  id: string
   title: string
   message: string
   type: "new_request" | "status_update" | "success" | "warning" | "error" | "system"
@@ -29,6 +29,7 @@ export interface Notification {
   requestId?: string
   branchCode?: string
   isForManager: boolean
+  recipientId?: string
 }
 
 export const PROBLEM_TYPES = [

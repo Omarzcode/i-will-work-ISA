@@ -21,12 +21,17 @@ export function useNotifications() {
     const notificationsRef = collection(db, "notifications")
     let q
 
-    if (user.role === "manager") {
-      // Managers see all notifications or manager-specific ones
-      q = query(notificationsRef, where("recipientRole", "in", ["manager", "all"]), orderBy("createdAt", "desc"))
+    if (user.isManager) {
+      // Managers see notifications marked for managers
+      q = query(notificationsRef, where("isForManager", "==", true), orderBy("timestamp", "desc"))
     } else {
-      // Branch users see their branch-specific notifications
-      q = query(notificationsRef, where("recipientId", "==", user.uid), orderBy("createdAt", "desc"))
+      // Branch users see notifications for their branch
+      q = query(
+        notificationsRef,
+        where("branchCode", "==", user.branchCode),
+        where("isForManager", "==", false),
+        orderBy("timestamp", "desc"),
+      )
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -41,11 +46,11 @@ export function useNotifications() {
           message: data.message,
           type: data.type,
           read: data.read || false,
-          createdAt: data.createdAt,
-          recipientId: data.recipientId,
-          recipientRole: data.recipientRole,
+          timestamp: data.timestamp,
           requestId: data.requestId,
           branchCode: data.branchCode,
+          isForManager: data.isForManager,
+          recipientId: data.recipientId,
         }
 
         notificationsList.push(notification)
@@ -54,7 +59,7 @@ export function useNotifications() {
         }
       })
 
-      setNotifications(notificationsList.slice(0, 80)) // Limit to 80 notifications
+      setNotifications(notificationsList.slice(0, 50)) // Limit to 50 notifications
       setUnreadCount(unreadCounter)
 
       // Show browser notification for new unread notifications
@@ -63,7 +68,7 @@ export function useNotifications() {
         if (latestUnread) {
           const browserNotification = new Notification(latestUnread.title, {
             body: latestUnread.message,
-            icon: "/caribou-logo.png",
+            icon: "/maintenance-logo.png",
             tag: latestUnread.id,
           })
 

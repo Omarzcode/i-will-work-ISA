@@ -90,6 +90,7 @@ export default function ManagerPage() {
         branchCode: branchCode,
         isForManager: false,
       })
+      console.log("Notification created for branch:", branchCode)
     } catch (error) {
       console.error("Error creating notification:", error)
     }
@@ -254,10 +255,10 @@ export default function ManagerPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-            <Card>
+            <Card className="rounded-3xl">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
+                  <div className="p-2 bg-yellow-100 rounded-2xl">
                     <Clock className="w-6 h-6 text-yellow-600" />
                   </div>
                   <div className="ml-4">
@@ -268,10 +269,10 @@ export default function ManagerPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-3xl">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
+                  <div className="p-2 bg-blue-100 rounded-2xl">
                     <CheckCircle className="w-6 h-6 text-blue-600" />
                   </div>
                   <div className="ml-4">
@@ -282,10 +283,10 @@ export default function ManagerPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-3xl">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="p-2 bg-orange-100 rounded-lg">
+                  <div className="p-2 bg-orange-100 rounded-2xl">
                     <AlertCircle className="w-6 h-6 text-orange-600" />
                   </div>
                   <div className="ml-4">
@@ -296,10 +297,10 @@ export default function ManagerPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-3xl">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
+                  <div className="p-2 bg-green-100 rounded-2xl">
                     <CheckCircle className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="ml-4">
@@ -310,10 +311,10 @@ export default function ManagerPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-3xl">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg">
+                  <div className="p-2 bg-purple-100 rounded-2xl">
                     <Star className="w-6 h-6 text-purple-600" />
                   </div>
                   <div className="ml-4">
@@ -337,14 +338,14 @@ export default function ManagerPage() {
                 placeholder="Search requests..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-2xl"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
+              <SelectTrigger className="w-full sm:w-48 rounded-2xl">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-2xl">
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="قيد المراجعة">Under Review</SelectItem>
                 <SelectItem value="تمت الموافقة">Approved</SelectItem>
@@ -358,7 +359,7 @@ export default function ManagerPage() {
           {/* Requests List */}
           <div className="space-y-4">
             {filteredRequests.length === 0 ? (
-              <Card>
+              <Card className="rounded-3xl">
                 <CardContent className="p-8 text-center">
                   <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">No requests found</p>
@@ -368,7 +369,7 @@ export default function ManagerPage() {
               filteredRequests.map((request) => {
                 const nextStatus = getNextStatus(request.status)
                 return (
-                  <Card key={request.id} className="hover:shadow-md transition-shadow">
+                  <Card key={request.id} className="hover:shadow-md transition-shadow rounded-3xl">
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -378,7 +379,9 @@ export default function ManagerPage() {
                               <span className="font-medium">{request.branchCode}</span>
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900">{request.problemType}</h3>
-                            <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
+                            <Badge className={`${getStatusColor(request.status)} rounded-full`}>
+                              {getStatusText(request.status)}
+                            </Badge>
                             {request.rating && (
                               <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full">
                                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -391,7 +394,7 @@ export default function ManagerPage() {
 
                           {/* Show feedback if available */}
                           {request.feedback && (
-                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="mb-4 p-3 bg-blue-50 rounded-2xl border border-blue-200">
                               <p className="text-sm font-medium text-blue-800 mb-1">Customer Feedback:</p>
                               <p className="text-sm text-blue-700">{request.feedback}</p>
                             </div>
@@ -399,7 +402,7 @@ export default function ManagerPage() {
 
                           {/* Show completion message if available */}
                           {request.completionMessage && (
-                            <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="mb-4 p-3 bg-green-50 rounded-2xl border border-green-200">
                               <p className="text-sm font-medium text-green-800 mb-1">Completion Message:</p>
                               <p className="text-sm text-green-700">{request.completionMessage}</p>
                             </div>
@@ -421,12 +424,17 @@ export default function ManagerPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" onClick={() => setSelectedRequest(request)}>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setSelectedRequest(request)}
+                                  className="rounded-2xl"
+                                >
                                   <Eye className="w-4 h-4 mr-1" />
                                   View Details
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
+                              <DialogContent className="max-w-2xl rounded-3xl">
                                 <DialogHeader>
                                   <DialogTitle>Request Details & Status Update</DialogTitle>
                                 </DialogHeader>
@@ -444,7 +452,7 @@ export default function ManagerPage() {
                                     </div>
                                     <div>
                                       <label className="text-sm font-medium text-gray-700">Current Status</label>
-                                      <Badge className={getStatusColor(selectedRequest.status)}>
+                                      <Badge className={`${getStatusColor(selectedRequest.status)} rounded-full ml-2`}>
                                         {getStatusText(selectedRequest.status)}
                                       </Badge>
                                     </div>
@@ -458,7 +466,7 @@ export default function ManagerPage() {
                                         <img
                                           src={selectedRequest.imageUrl || "/placeholder.svg"}
                                           alt="Request attachment"
-                                          className="mt-2 max-w-full h-64 object-cover rounded-lg border"
+                                          className="mt-2 max-w-full h-64 object-cover rounded-2xl border"
                                         />
                                       </div>
                                     )}
@@ -467,7 +475,7 @@ export default function ManagerPage() {
                                         <label className="text-sm font-medium text-gray-700">
                                           Customer Rating & Feedback
                                         </label>
-                                        <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                        <div className="mt-2 p-3 bg-yellow-50 rounded-2xl border border-yellow-200">
                                           <div className="flex items-center gap-2 mb-2">
                                             {renderStars(selectedRequest.rating)}
                                             <span className="text-sm font-medium text-yellow-800">
@@ -483,7 +491,7 @@ export default function ManagerPage() {
                                     {selectedRequest.completionMessage && (
                                       <div>
                                         <label className="text-sm font-medium text-gray-700">Completion Message</label>
-                                        <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                                        <div className="mt-2 p-3 bg-green-50 rounded-2xl border border-green-200">
                                           <p className="text-sm text-green-700">{selectedRequest.completionMessage}</p>
                                         </div>
                                       </div>
@@ -493,14 +501,14 @@ export default function ManagerPage() {
                                     <div>
                                       <label className="text-sm font-medium text-gray-700">Update Status</label>
                                       {selectedRequest.status === "تم الإنجاز" ? (
-                                        <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                                        <div className="mt-2 p-3 bg-green-50 rounded-2xl border border-green-200">
                                           <p className="text-sm text-green-700 font-medium">✅ Request Completed</p>
                                           <p className="text-sm text-green-600">
                                             This request has been marked as completed.
                                           </p>
                                         </div>
                                       ) : selectedRequest.status === "مرفوض" ? (
-                                        <div className="mt-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                                        <div className="mt-2 p-3 bg-red-50 rounded-2xl border border-red-200">
                                           <p className="text-sm text-red-700 font-medium">❌ Request Rejected</p>
                                           <p className="text-sm text-red-600">This request has been rejected.</p>
                                         </div>
@@ -518,6 +526,7 @@ export default function ManagerPage() {
                                                     value={completionMessage}
                                                     onChange={(e) => setCompletionMessage(e.target.value)}
                                                     rows={3}
+                                                    className="rounded-2xl"
                                                   />
                                                 </div>
                                               )}
@@ -534,7 +543,7 @@ export default function ManagerPage() {
                                                   )
                                                 }}
                                                 disabled={updatingStatus === selectedRequest.id}
-                                                className={getNextStatus(selectedRequest.status)!.color}
+                                                className={`${getNextStatus(selectedRequest.status)!.color} rounded-2xl`}
                                               >
                                                 {updatingStatus === selectedRequest.id
                                                   ? "Updating..."
@@ -545,7 +554,7 @@ export default function ManagerPage() {
                                                 variant="destructive"
                                                 onClick={() => handleStatusUpdate(selectedRequest.id!, "مرفوض")}
                                                 disabled={updatingStatus === selectedRequest.id}
-                                                className="ml-2"
+                                                className="ml-2 rounded-2xl"
                                               >
                                                 Reject
                                               </Button>
@@ -565,7 +574,7 @@ export default function ManagerPage() {
                                 size="sm"
                                 onClick={() => handleStatusUpdate(request.id!, nextStatus.status)}
                                 disabled={updatingStatus === request.id}
-                                className={nextStatus.color}
+                                className={`${nextStatus.color} rounded-2xl`}
                               >
                                 {updatingStatus === request.id ? "Updating..." : nextStatus.text}
                               </Button>
@@ -578,6 +587,7 @@ export default function ManagerPage() {
                                 variant="destructive"
                                 onClick={() => handleStatusUpdate(request.id!, "مرفوض")}
                                 disabled={updatingStatus === request.id}
+                                className="rounded-2xl"
                               >
                                 Reject
                               </Button>
