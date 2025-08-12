@@ -1,17 +1,40 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell, CheckCheck } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Bell, CheckCheck, BellRing, Settings } from "lucide-react"
 import { useNotifications } from "@/hooks/useNotifications"
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const [open, setOpen] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
+
+  useEffect(() => {
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission)
+    }
+  }, [])
+
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window) {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+
+      if (permission === "granted") {
+        // Show a test notification
+        new Notification("Notifications Enabled!", {
+          body: "You'll now receive real-time notifications for updates.",
+          icon: "/favicon.ico",
+        })
+      }
+    }
+  }
 
   const formatTimeAgo = (timestamp: any) => {
     if (!timestamp) return ""
@@ -81,9 +104,35 @@ export function NotificationBell() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {/* Notification Permission Alert */}
+            {notificationPermission !== "granted" && (
+              <div className="p-3 border-b">
+                <Alert>
+                  <BellRing className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    <div className="flex items-center justify-between">
+                      <span>Enable browser notifications for real-time alerts</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={requestNotificationPermission}
+                        className="h-6 px-2 text-xs ml-2 bg-transparent"
+                      >
+                        <Settings className="w-3 h-3 mr-1" />
+                        Enable
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
             <ScrollArea className="h-80">
               {notifications.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-500">No notifications yet</div>
+                <div className="p-4 text-center text-sm text-gray-500">
+                  <Bell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  No notifications yet
+                </div>
               ) : (
                 <div className="space-y-1">
                   {notifications.map((notification) => (

@@ -4,7 +4,18 @@ import { useState, useEffect } from "react"
 import { collection, query, orderBy, onSnapshot, where, doc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "./useAuth"
-import type { Notification } from "@/lib/types"
+
+export interface Notification {
+  id?: string
+  title: string
+  message: string
+  type: "new_request" | "status_update" | "success" | "warning" | "error" | "system"
+  timestamp: any
+  read: boolean
+  requestId?: string
+  branchCode?: string
+  isForManager: boolean
+}
 
 export function useNotifications() {
   const { user } = useAuth()
@@ -43,12 +54,55 @@ export function useNotifications() {
         ...doc.data(),
       })) as Notification[]
 
+      // Show browser notification for new unread notifications
+      const previousNotifications = notifications
+      const newNotifications = notificationsData.filter(
+        (newNotif) => !newNotif.read && !previousNotifications.some((prevNotif) => prevNotif.id === newNotif.id),
+      )
+
+      // Show browser notifications for new notifications
+      newNotifications.forEach((notification) => {
+        showBrowserNotification(notification)
+      })
+
       setNotifications(notificationsData)
       setLoading(false)
     })
 
     return () => unsubscribe()
-  }, [user])
+  }, [user]) // Removed notifications.length from dependency
+
+  const showBrowserNotification = (notification: Notification) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        const browserNotification = new Notification(notification.title, {
+          body: notification.message,
+          icon: "/favicon.ico",
+          tag: notification.id,
+          badge: "/favicon.ico",
+          requireInteraction: false,
+          silent: false,
+        })
+
+        // Auto close after 5 seconds
+        setTimeout(() => {
+          browserNotification.close()
+        }, 5000)
+
+        // Handle click
+        browserNotification.onclick = () => {
+          window.focus()
+          browserNotification.close()
+          // Mark as read when clicked
+          if (notification.id) {
+            markAsRead(notification.id)
+          }
+        }
+      } catch (error) {
+        console.log("Browser notification failed:", error)
+      }
+    }
+  }
 
   const markAsRead = async (notificationId: string) => {
     try {
