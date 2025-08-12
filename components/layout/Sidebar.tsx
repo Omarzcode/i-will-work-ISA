@@ -47,6 +47,7 @@ export function Sidebar() {
 
   const filteredItems = navigationItems.filter((item) => {
     if (user?.isManager) {
+      // For managers, only show Dashboard, Manage Requests, and Analytics
       return item.roles.includes("manager")
     }
     return item.roles.includes("user")

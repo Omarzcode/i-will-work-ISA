@@ -10,7 +10,7 @@ import { AppLayout } from "@/components/layout/AppLayout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, FileText, Clock, CheckCircle, AlertTriangle, TrendingUp, Calendar, Building } from "lucide-react"
+import { FileText, Clock, CheckCircle, AlertTriangle, Calendar, Building } from "lucide-react"
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -60,17 +60,17 @@ export default function DashboardPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "قيد المراجعة":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
       case "تمت الموافقة":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800 border-blue-200"
       case "قيد التنفيذ":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800 border-orange-200"
       case "تم الإنجاز":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800 border-green-200"
       case "مرفوض":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800 border-red-200"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
 
@@ -129,9 +129,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Quick Actions */}
-          
-
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
@@ -193,30 +190,39 @@ export default function DashboardPage() {
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 mb-4">No requests yet</p>
-                  <Button onClick={() => router.push("/create-request")}>Create Your First Request</Button>
+                  {!user?.isManager && (
+                    <Button onClick={() => router.push("/create-request")}>Create Your First Request</Button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
                   {requests.map((request) => (
                     <div
                       key={request.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
                           {user?.isManager && (
-                            <div className="flex items-center gap-1 text-sm text-blue-600">
-                              <Building className="w-4 h-4" />
-                              {request.branchCode}
+                            <div className="flex items-center gap-1 text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded-md">
+                              <Building className="w-3 h-3" />
+                              <span className="font-medium">{request.branchCode}</span>
                             </div>
                           )}
-                          <h3 className="font-medium text-gray-900">{request.problemType}</h3>
-                          <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
+                          <h3 className="font-medium text-gray-900 truncate">{request.problemType}</h3>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">{request.description}</p>
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(request.timestamp)}
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{request.description}</p>
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar className="w-3 h-3" />
+                            <span>{formatDate(request.timestamp)}</span>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`${getStatusColor(request.status)} text-xs font-medium px-2 py-1`}
+                          >
+                            {getStatusText(request.status)}
+                          </Badge>
                         </div>
                       </div>
                     </div>
