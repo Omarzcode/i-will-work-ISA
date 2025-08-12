@@ -1,8 +1,11 @@
+import type { Timestamp } from "firebase/firestore"
+
 export interface User {
-  uid: string
+  id: string
   email: string
   branchCode: string
   isManager: boolean
+  name?: string
 }
 
 export interface MaintenanceRequest {
@@ -10,30 +13,20 @@ export interface MaintenanceRequest {
   branchCode: string
   problemType: string
   description: string
-  status: string
-  timestamp: any
   imageUrl?: string
+  status: string
+  timestamp: Timestamp
+  userId: string
   rating?: number
   feedback?: string
-  cancelReason?: string
 }
 
-export interface Notification {
-  id: string
-  title: string
+export interface NotificationData {
+  id?: string
+  userId: string
+  requestId: string
   message: string
-  timestamp: any
+  timestamp: Timestamp
   read: boolean
-  type: "info" | "success" | "warning" | "error"
+  type: "status_update" | "new_request" | "request_approved" | "request_completed"
 }
-
-export const PROBLEM_TYPES = [
-  "Air Conditioning",
-  "Plumbing",
-  "Electrical",
-  "Equipment Malfunction",
-  "Cleaning",
-  "Furniture",
-  "Security",
-  "Other",
-]
