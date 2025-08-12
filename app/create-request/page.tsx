@@ -41,12 +41,9 @@ export default function CreateRequestPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
-  console.log("CreateRequest: Component loaded, user:", user?.email, "branchCode:", user?.branchCode)
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      console.log("CreateRequest: Image selected:", file.name, file.size)
       setImage(file)
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -57,13 +54,13 @@ export default function CreateRequestPage() {
   }
 
   const removeImage = () => {
-    console.log("CreateRequest: Removing image")
     setImage(null)
     setImagePreview(null)
   }
 
   const createNotificationForManagers = async (requestId: string, problemType: string, branchCode: string) => {
     try {
+<<<<<<< HEAD
       console.log("CreateRequest: Creating notification for managers")
       console.log("CreateRequest: Notification data:", {
         requestId,
@@ -72,6 +69,9 @@ export default function CreateRequestPage() {
       })
 const x =0
       const notificationData = {
+=======
+      await addDoc(collection(db, "notifications"), {
+>>>>>>> 8b27ee08f38b60005b199c2bdd3cabbe67784e8f
         title: "New Maintenance Request",
         message: `New ${problemType} request from ${branchCode} branch`,
         type: "new_request",
@@ -80,22 +80,15 @@ const x =0
         requestId: requestId,
         branchCode: branchCode,
         isForManager: true,
-      }
-
-      console.log("CreateRequest: Adding notification to Firestore:", notificationData)
-
-      const docRef = await addDoc(collection(db, "notifications"), notificationData)
-      console.log("CreateRequest: Notification created successfully with ID:", docRef.id)
+      })
+      console.log("Notification created for managers")
     } catch (error) {
-      console.error("CreateRequest: Error creating notification for managers:", error)
+      console.error("Error creating notification:", error)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    console.log("CreateRequest: Form submitted")
-    console.log("CreateRequest: Form data:", { problemType, description, hasImage: !!image })
 
     if (!problemType) {
       setError("Please select an issue type")
@@ -107,11 +100,6 @@ const x =0
       return
     }
 
-    if (!user) {
-      setError("User not authenticated")
-      return
-    }
-
     setIsLoading(true)
     setError("")
 
@@ -119,36 +107,30 @@ const x =0
       let imageUrl = ""
 
       if (image) {
-        console.log("CreateRequest: Uploading image...")
         imageUrl = await uploadToImgBB(image)
-        console.log("CreateRequest: Image uploaded successfully:", imageUrl)
       }
 
-      console.log("CreateRequest: Creating request document...")
       // Create request document
-      const requestData = {
-        branchCode: user.branchCode,
+      const docRef = await addDoc(collection(db, "requests"), {
+        branchCode: user?.branchCode || "unknown",
         problemType,
         description: description.trim(),
         status: "قيد المراجعة",
         timestamp: serverTimestamp(),
         imageUrl,
-        userId: user.uid,
-      }
+        userId: user?.uid || "",
+      })
 
-      console.log("CreateRequest: Request data:", requestData)
-      const docRef = await addDoc(collection(db, "requests"), requestData)
-      console.log("CreateRequest: Request created with ID:", docRef.id)
+      console.log("Request created with ID:", docRef.id)
 
       // Create notification for managers
-      await createNotificationForManagers(docRef.id, problemType, user.branchCode)
+      await createNotificationForManagers(docRef.id, problemType, user?.branchCode || "unknown")
 
       toast({
         title: "Request Submitted Successfully!",
         description: "Your maintenance request has been submitted and is now under review.",
       })
 
-      console.log("CreateRequest: Success! Resetting form...")
       // Reset form
       setProblemType("")
       setDescription("")
@@ -160,7 +142,7 @@ const x =0
         router.push("/dashboard")
       }, 1500)
     } catch (error) {
-      console.error("CreateRequest: Error submitting request:", error)
+      console.error("Error submitting request:", error)
       setError("Failed to submit request. Please try again.")
       toast({
         title: "Error",
