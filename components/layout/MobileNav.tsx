@@ -3,7 +3,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
-import { Home, FileText, Plus, BarChart3, User, Building2 } from "lucide-react"
+import { Home, FileText, Plus, BarChart3, User, Building2, Users } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -21,36 +21,45 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
       href: "/dashboard",
       icon: Home,
       description: "Overview and quick stats",
+      roles: ["user", "manager"],
     },
     {
       title: "Create Request",
       href: "/create-request",
       icon: Plus,
       description: "Submit a new maintenance request",
+      roles: ["user"],
     },
     {
       title: "My Requests",
       href: "/my-requests",
       icon: FileText,
       description: "Track your submitted requests",
+      roles: ["user"],
     },
-    ...(user?.isManager
-      ? [
-          {
-            title: "Manager Dashboard",
-            href: "/manager",
-            icon: BarChart3,
-            description: "Manage all requests and analytics",
-          },
-          {
-            title: "Analytics",
-            href: "/analytics",
-            icon: BarChart3,
-            description: "View detailed reports and insights",
-          },
-        ]
-      : []),
+    {
+      title: "Manage Requests",
+      href: "/manager",
+      icon: Users,
+      description: "Manage all requests and analytics",
+      roles: ["manager"],
+    },
+    {
+      title: "Analytics",
+      href: "/analytics",
+      icon: BarChart3,
+      description: "View detailed reports and insights",
+      roles: ["manager"],
+    },
   ]
+
+  const filteredItems = navigationItems.filter((item) => {
+    if (user?.isManager) {
+      // For managers, only show Dashboard, Manage Requests, and Analytics
+      return ["Dashboard", "Manage Requests", "Analytics"].includes(item.title)
+    }
+    return item.roles.includes("user")
+  })
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
@@ -93,7 +102,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2">
-            {navigationItems.map((item) => {
+            {filteredItems.map((item) => {
               const Icon = item.icon
               return (
                 <Link key={item.href} href={item.href} onClick={onClose}>
