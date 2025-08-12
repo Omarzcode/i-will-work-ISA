@@ -70,7 +70,7 @@ export default function CreateRequestPage() {
         problemType,
         branchCode,
       })
-
+const x =0
       const notificationData = {
         title: "New Maintenance Request",
         message: `New ${problemType} request from ${branchCode} branch`,
