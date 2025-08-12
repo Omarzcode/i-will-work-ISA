@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore"
+import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle, Star, Eye } from "lucide-react"
+import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle, Star, Eye, Building } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 
@@ -28,11 +28,8 @@ export default function ManagerPage() {
 
   useEffect(() => {
     if (user?.isManager) {
-      const requestsQuery = query(
-        collection(db, "requests"),
-        where("branchCode", "==", user.branchCode),
-        orderBy("timestamp", "desc"),
-      )
+      // For managers, show ALL requests from ALL branches
+      const requestsQuery = query(collection(db, "requests"), orderBy("timestamp", "desc"))
 
       const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
         const requestsData = snapshot.docs.map((doc) => ({
@@ -55,7 +52,8 @@ export default function ManagerPage() {
       filtered = filtered.filter(
         (request) =>
           request.problemType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          request.description.toLowerCase().includes(searchQuery.toLowerCase()),
+          request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.branchCode.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
 
@@ -159,7 +157,7 @@ export default function ManagerPage() {
 
   const getAverageRating = () => {
     const ratedRequests = requests.filter((r) => r.rating && r.rating > 0)
-    if (ratedRequests.length === 0) return 0
+    if (ratedRequests.length === 0) return "0.0"
     const totalRating = ratedRequests.reduce((sum, r) => sum + (r.rating || 0), 0)
     return (totalRating / ratedRequests.length).toFixed(1)
   }
@@ -196,7 +194,7 @@ export default function ManagerPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
-            <p className="text-gray-600 mt-2">Manage maintenance requests for your branch</p>
+            <p className="text-gray-600 mt-2">Manage maintenance requests from all branches</p>
           </div>
 
           {/* Stats Cards */}
@@ -318,12 +316,16 @@ export default function ManagerPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-2 text-blue-600">
+                            <Building className="w-4 h-4" />
+                            <span className="font-medium">{request.branchCode}</span>
+                          </div>
                           <h3 className="text-lg font-semibold text-gray-900">{request.problemType}</h3>
                           <Badge className={getStatusColor(request.status)}>{getStatusText(request.status)}</Badge>
                           {request.rating && (
                             <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full">
                               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <span className="text-sm font-medium text-yellow-800">{request.rating}</span>
+                              <span className="text-sm font-medium text-yellow-800">{request.rating}/5</span>
                             </div>
                           )}
                         </div>
@@ -367,15 +369,19 @@ export default function ManagerPage() {
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
+                                      <label className="text-sm font-medium text-gray-700">Branch Code</label>
+                                      <p className="text-sm text-gray-900">{selectedRequest.branchCode}</p>
+                                    </div>
+                                    <div>
                                       <label className="text-sm font-medium text-gray-700">Problem Type</label>
                                       <p className="text-sm text-gray-900">{selectedRequest.problemType}</p>
                                     </div>
-                                    <div>
-                                      <label className="text-sm font-medium text-gray-700">Current Status</label>
-                                      <Badge className={getStatusColor(selectedRequest.status)}>
-                                        {getStatusText(selectedRequest.status)}
-                                      </Badge>
-                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Current Status</label>
+                                    <Badge className={getStatusColor(selectedRequest.status)}>
+                                      {getStatusText(selectedRequest.status)}
+                                    </Badge>
                                   </div>
                                   <div>
                                     <label className="text-sm font-medium text-gray-700">Description</label>

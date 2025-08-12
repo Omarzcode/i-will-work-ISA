@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from "firebase/firestore"
+import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
@@ -12,7 +12,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,26 +23,28 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Search, FileText, Calendar, ImageIcon, Trash2, Star } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 export default function MyRequestsPage() {
   const { user } = useAuth()
-  const { toast } = useToast()
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
-  const [ratingData, setRatingData] = useState<{ [key: string]: { rating: number; feedback: string } }>({})
-  const [submittingRating, setSubmittingRating] = useState<string | null>(null)
+  const [ratingRequest, setRatingRequest] = useState<MaintenanceRequest | null>(null)
+  const [rating, setRating] = useState(0)
+  const [feedback, setFeedback] = useState("")
+  const [submittingRating, setSubmittingRating] = useState(false)
 
   useEffect(() => {
-    if (user) {
+    if (user && !user.isManager) {
       const requestsQuery = query(
         collection(db, "requests"),
-        where("userId", "==", user.id),
+        where("branchCode", "==", user.branchCode),
         orderBy("timestamp", "desc"),
       )
 
@@ -54,19 +55,6 @@ export default function MyRequestsPage() {
         })) as MaintenanceRequest[]
 
         setRequests(requestsData)
-
-        // Initialize rating data for completed requests
-        const initialRatingData: { [key: string]: { rating: number; feedback: string } } = {}
-        requestsData.forEach((request) => {
-          if (request.id) {
-            initialRatingData[request.id] = {
-              rating: request.rating || 0,
-              feedback: request.feedback || "",
-            }
-          }
-        })
-        setRatingData(initialRatingData)
-
         setIsLoading(false)
       })
 
@@ -112,27 +100,24 @@ export default function MyRequestsPage() {
     }
   }
 
-  const handleRatingSubmit = async (requestId: string) => {
-    const data = ratingData[requestId]
-    if (!data || data.rating === 0) {
-      toast({
-        title: "Rating Required",
-        description: "Please select a star rating before submitting.",
-        variant: "destructive",
-      })
-      return
-    }
+  const handleRatingSubmit = async () => {
+    if (!ratingRequest || rating === 0) return
 
-    setSubmittingRating(requestId)
+    setSubmittingRating(true)
     try {
-      await updateDoc(doc(db, "requests", requestId), {
-        rating: data.rating,
-        feedback: data.feedback.trim() || null,
+      await updateDoc(doc(db, "requests", ratingRequest.id!), {
+        rating: rating,
+        feedback: feedback.trim() || null,
       })
+
       toast({
         title: "Rating Submitted",
         description: "Thank you for your feedback!",
       })
+
+      setRatingRequest(null)
+      setRating(0)
+      setFeedback("")
     } catch (error) {
       console.error("Error submitting rating:", error)
       toast({
@@ -141,36 +126,14 @@ export default function MyRequestsPage() {
         variant: "destructive",
       })
     } finally {
-      setSubmittingRating(null)
+      setSubmittingRating(false)
     }
   }
 
-  const updateRating = (requestId: string, rating: number) => {
-    setRatingData((prev) => ({
-      ...prev,
-      [requestId]: {
-        ...prev[requestId],
-        rating,
-      },
-    }))
-  }
-
-  const updateFeedback = (requestId: string, feedback: string) => {
-    setRatingData((prev) => ({
-      ...prev,
-      [requestId]: {
-        ...prev[requestId],
-        feedback,
-      },
-    }))
-  }
-
-  const canCancelRequest = (status: string) => {
-    return status === "قيد المراجعة" || status === "تمت الموافقة"
-  }
-
-  const canRateRequest = (status: string) => {
-    return status === "تم الإنجاز"
+  const openRatingDialog = (request: MaintenanceRequest) => {
+    setRatingRequest(request)
+    setRating(request.rating || 0)
+    setFeedback(request.feedback || "")
   }
 
   const getStatusColor = (status: string) => {
@@ -219,19 +182,40 @@ export default function MyRequestsPage() {
     })
   }
 
-  const renderStars = (requestId: string, currentRating: number, interactive = false) => {
+  const canCancelRequest = (status: string) => {
+    return status === "قيد المراجعة" || status === "تمت الموافقة"
+  }
+
+  const canRateRequest = (status: string) => {
+    return status === "تم الإنجاز"
+  }
+
+  const renderStars = (currentRating: number, interactive = false) => {
     return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`w-5 h-5 ${
-              star <= currentRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-            } ${interactive ? "cursor-pointer hover:text-yellow-400" : ""}`}
-            onClick={interactive ? () => updateRating(requestId, star) : undefined}
+            className={`w-5 h-5 cursor-pointer transition-colors ${
+              star <= currentRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-300"
+            }`}
+            onClick={interactive ? () => setRating(star) : undefined}
           />
         ))}
       </div>
+    )
+  }
+
+  if (user?.isManager) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+            <p className="text-gray-600">Managers should use the Manager Dashboard instead.</p>
+          </div>
+        </div>
+      </AppLayout>
     )
   }
 
@@ -322,14 +306,14 @@ export default function MyRequestsPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex gap-2 flex-wrap">
                           {/* Cancel Request Button */}
                           {canCancelRequest(request.status) && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="destructive" disabled={cancellingId === request.id}>
+                                <Button size="sm" variant="destructive">
                                   <Trash2 className="w-4 h-4 mr-1" />
-                                  {cancellingId === request.id ? "Cancelling..." : "Cancel Request"}
+                                  Cancel Request
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
@@ -344,9 +328,10 @@ export default function MyRequestsPage() {
                                   <AlertDialogCancel>Keep Request</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleCancelRequest(request.id!)}
+                                    disabled={cancellingId === request.id}
                                     className="bg-red-600 hover:bg-red-700"
                                   >
-                                    Cancel Request
+                                    {cancellingId === request.id ? "Cancelling..." : "Cancel Request"}
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -355,42 +340,46 @@ export default function MyRequestsPage() {
 
                           {/* Rate Service Button */}
                           {canRateRequest(request.status) && (
-                            <Dialog>
+                            <Dialog
+                              open={ratingRequest?.id === request.id}
+                              onOpenChange={(open) => !open && setRatingRequest(null)}
+                            >
                               <DialogTrigger asChild>
-                                <Button size="sm" variant="outline">
+                                <Button size="sm" variant="outline" onClick={() => openRatingDialog(request)}>
                                   <Star className="w-4 h-4 mr-1" />
                                   {request.rating ? "Update Rating" : "Rate Service"}
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-md">
+                              <DialogContent>
                                 <DialogHeader>
-                                  <DialogTitle>Rate Our Service</DialogTitle>
+                                  <DialogTitle>Rate Service Quality</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div>
                                     <label className="text-sm font-medium text-gray-700 mb-2 block">
-                                      How would you rate our service?
+                                      How would you rate the service?
                                     </label>
-                                    {renderStars(request.id!, ratingData[request.id!]?.rating || 0, true)}
+                                    {renderStars(rating, true)}
                                   </div>
                                   <div>
                                     <label className="text-sm font-medium text-gray-700 mb-2 block">
                                       Additional Comments (Optional)
                                     </label>
                                     <Textarea
-                                      placeholder="Tell us about your experience..."
-                                      value={ratingData[request.id!]?.feedback || ""}
-                                      onChange={(e) => updateFeedback(request.id!, e.target.value)}
+                                      placeholder="Share your experience..."
+                                      value={feedback}
+                                      onChange={(e) => setFeedback(e.target.value)}
                                       rows={3}
                                     />
                                   </div>
-                                  <Button
-                                    onClick={() => handleRatingSubmit(request.id!)}
-                                    disabled={submittingRating === request.id}
-                                    className="w-full"
-                                  >
-                                    {submittingRating === request.id ? "Submitting..." : "Submit Rating"}
-                                  </Button>
+                                  <div className="flex gap-2 justify-end">
+                                    <Button variant="outline" onClick={() => setRatingRequest(null)}>
+                                      Cancel
+                                    </Button>
+                                    <Button onClick={handleRatingSubmit} disabled={rating === 0 || submittingRating}>
+                                      {submittingRating ? "Submitting..." : "Submit Rating"}
+                                    </Button>
+                                  </div>
                                 </div>
                               </DialogContent>
                             </Dialog>
