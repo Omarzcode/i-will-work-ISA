@@ -23,7 +23,7 @@ export default function DashboardPage() {
     completed: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
-
+ const x=0
   useEffect(() => {
     if (user) {
       const requestsQuery = user.isManager
