@@ -1,59 +1,121 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { useAuth } from "./useAuth"
+import type { Notification } from "@/lib/types"
 
-export const createNotification = async (
-  title: string,
-  message: string,
-  isForManager: boolean,
-  branchCode?: string,
-  type: "request_created" | "status_updated" = "request_created",
-  requestId?: string,
-) => {
-  try {
-    console.log("createNotification: Starting notification creation")
-    console.log("createNotification: Parameters:", {
-      title,
-      message,
-      isForManager,
-      branchCode,
-      type,
-      requestId,
-    })
+export function useNotifications() {
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const { user } = useAuth()
 
-    const notificationData = {
-      title,
-      message,
-      isForManager,
-      branchCode: branchCode || null,
-      type,
-      requestId: requestId || null,
-      timestamp: serverTimestamp(),
-      read: false,
+  useEffect(() => {
+    if (!user) {
+      setNotifications([])
+      setUnreadCount(0)
+      return
     }
 
-    console.log("createNotification: Creating notification with data:", notificationData)
+    const notificationsRef = collection(db, "notifications")
+    let q
 
-    const docRef = await addDoc(collection(db, "notifications"), notificationData)
+    if (user.isManager) {
+      // Managers see notifications marked for managers
+      q = query(notificationsRef, where("isForManager", "==", true), orderBy("timestamp", "desc"))
+    } else {
+      // Branch users see notifications for their branch
+      q = query(
+        notificationsRef,
+        where("branchCode", "==", user.branchCode),
+        where("isForManager", "==", false),
+        orderBy("timestamp", "desc"),
+      )
+    }
 
-    console.log("createNotification: Notification created successfully with ID:", docRef.id)
-    return docRef.id
-  } catch (error) {
-    console.error("createNotification: Error creating notification:", error)
-    throw error
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notificationsList: Notification[] = []
+      let unreadCounter = 0
+
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        const notification: Notification = {
+          id: doc.id,
+          title: data.title,
+          message: data.message,
+          type: data.type,
+          read: data.read || false,
+          timestamp: data.timestamp,
+          requestId: data.requestId,
+          branchCode: data.branchCode,
+          isForManager: data.isForManager,
+          recipientId: data.recipientId,
+        }
+
+        notificationsList.push(notification)
+        if (!notification.read) {
+          unreadCounter++
+        }
+      })
+
+      setNotifications(notificationsList.slice(0, 50)) // Limit to 50 notifications
+      setUnreadCount(unreadCounter)
+
+      // Show browser notification for new unread notifications
+      if (unreadCounter > 0 && "Notification" in window && Notification.permission === "granted") {
+        const latestUnread = notificationsList.find((n) => !n.read)
+        if (latestUnread) {
+          const browserNotification = new Notification(latestUnread.title, {
+            body: latestUnread.message,
+            icon: "/maintenance-logo.png",
+            tag: latestUnread.id,
+          })
+
+          browserNotification.onclick = () => {
+            window.focus()
+            browserNotification.close()
+          }
+
+          setTimeout(() => {
+            browserNotification.close()
+          }, 5000)
+        }
+      }
+    })
+
+    return () => unsubscribe()
+  }, [user])
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const notificationRef = doc(db, "notifications", notificationId)
+      await updateDoc(notificationRef, { read: true })
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+    }
   }
-}
 
-export const createManagerNotification = async (title: string, message: string, requestId?: string) => {
-  console.log("createManagerNotification: Creating manager notification")
-  return createNotification(title, message, true, undefined, "request_created", requestId)
-}
+  const markAllAsRead = async () => {
+    try {
+      const batch = writeBatch(db)
+      const unreadNotifications = notifications.filter((n) => !n.read)
 
-export const createBranchNotification = async (
-  title: string,
-  message: string,
-  branchCode: string,
-  requestId?: string,
-) => {
-  console.log("createBranchNotification: Creating branch notification for:", branchCode)
-  return createNotification(title, message, false, branchCode, "status_updated", requestId)
+      unreadNotifications.forEach((notification) => {
+        const notificationRef = doc(db, "notifications", notification.id)
+        batch.update(notificationRef, { read: true })
+      })
+
+      await batch.commit()
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error)
+    }
+  }
+
+  return {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+  }
 }

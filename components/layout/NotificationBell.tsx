@@ -8,135 +8,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Bell, CheckCheck, BellRing, Settings } from "lucide-react"
-import { useAuth } from "@/hooks/useAuth"
-import { db } from "@/lib/firebase"
-import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, writeBatch } from "firebase/firestore"
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  timestamp: any
-  read: boolean
-  type: string
-  requestId?: string
-  branchCode?: string
-  isForManager: boolean
-}
+import { useNotifications } from "@/hooks/useNotifications"
 
 export function NotificationBell() {
-  const { user } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const [open, setOpen] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
-
-  console.log("NotificationBell: Component loaded, user:", user?.email, "isManager:", user?.isManager)
 
   useEffect(() => {
     if ("Notification" in window) {
       setNotificationPermission(Notification.permission)
     }
   }, [])
-
-  useEffect(() => {
-    if (!user) {
-      console.log("NotificationBell: No user, clearing notifications")
-      setNotifications([])
-      setUnreadCount(0)
-      return
-    }
-
-    console.log("NotificationBell: Setting up notifications for user:", {
-      email: user.email,
-      isManager: user.isManager,
-      branchCode: user.branchCode,
-    })
-
-    const notificationsRef = collection(db, "notifications")
-    let q
-
-    if (user.isManager) {
-      // Managers see notifications marked for managers
-      q = query(notificationsRef, where("isForManager", "==", true), orderBy("timestamp", "desc"))
-      console.log("NotificationBell: Created manager query")
-    } else {
-      // Branch users see notifications for their branch
-      q = query(
-        notificationsRef,
-        where("branchCode", "==", user.branchCode),
-        where("isForManager", "==", false),
-        orderBy("timestamp", "desc"),
-      )
-      console.log("NotificationBell: Created branch user query for branch:", user.branchCode)
-    }
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        console.log("NotificationBell: Received snapshot with", snapshot.docs.length, "notifications")
-
-        const notificationsList: Notification[] = []
-        let unreadCounter = 0
-
-        snapshot.forEach((doc) => {
-          const data = doc.data()
-          console.log("NotificationBell: Processing notification:", doc.id, data)
-
-          const notification: Notification = {
-            id: doc.id,
-            title: data.title,
-            message: data.message,
-            type: data.type,
-            read: data.read || false,
-            timestamp: data.timestamp,
-            requestId: data.requestId,
-            branchCode: data.branchCode,
-            isForManager: data.isForManager,
-          }
-
-          notificationsList.push(notification)
-          if (!notification.read) {
-            unreadCounter++
-          }
-        })
-
-        console.log("NotificationBell: Processed notifications:", notificationsList.length, "unread:", unreadCounter)
-        setNotifications(notificationsList.slice(0, 50)) // Limit to 50 notifications
-        setUnreadCount(unreadCounter)
-
-        // Show browser notification for new unread notifications
-        if (unreadCounter > 0 && "Notification" in window && Notification.permission === "granted") {
-          const latestUnread = notificationsList.find((n) => !n.read)
-          if (latestUnread) {
-            console.log("NotificationBell: Showing browser notification:", latestUnread.title)
-            const browserNotification = new Notification(latestUnread.title, {
-              body: latestUnread.message,
-              icon: "/maintenance-logo.png",
-              tag: latestUnread.id,
-            })
-
-            browserNotification.onclick = () => {
-              window.focus()
-              browserNotification.close()
-            }
-
-            setTimeout(() => {
-              browserNotification.close()
-            }, 5000)
-          }
-        }
-      },
-      (error) => {
-        console.error("NotificationBell: Error in notifications listener:", error)
-      },
-    )
-
-    return () => {
-      console.log("NotificationBell: Cleaning up notifications listener")
-      unsubscribe()
-    }
-  }, [user])
 
   const requestNotificationPermission = async () => {
     if ("Notification" in window) {
@@ -154,19 +37,14 @@ export function NotificationBell() {
 
   const formatTimeAgo = (timestamp: any) => {
     if (!timestamp) return ""
-    try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-      const now = new Date()
-      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    const now = new Date()
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
 
-      if (diffInMinutes < 1) return "Just now"
-      if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-      if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-      return `${Math.floor(diffInMinutes / 1440)}d ago`
-    } catch (error) {
-      console.error("NotificationBell: Error formatting timestamp:", error)
-      return "Just now"
-    }
+    if (diffInMinutes < 1) return "Just now"
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
+    return `${Math.floor(diffInMinutes / 1440)}d ago`
   }
 
   const getNotificationIcon = (type: string) => {
@@ -186,37 +64,9 @@ export function NotificationBell() {
     }
   }
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = (notification: any) => {
     if (!notification.read) {
       markAsRead(notification.id)
-    }
-  }
-
-  const markAsRead = async (notificationId: string) => {
-    try {
-      console.log("NotificationBell: Marking notification as read:", notificationId)
-      const notificationRef = doc(db, "notifications", notificationId)
-      await updateDoc(notificationRef, { read: true })
-    } catch (error) {
-      console.error("NotificationBell: Error marking notification as read:", error)
-    }
-  }
-
-  const markAllAsRead = async () => {
-    try {
-      console.log("NotificationBell: Marking all notifications as read")
-      const batch = writeBatch(db)
-      const unreadNotifications = notifications.filter((n) => !n.read)
-
-      unreadNotifications.forEach((notification) => {
-        const notificationRef = doc(db, "notifications", notification.id)
-        batch.update(notificationRef, { read: true })
-      })
-
-      await batch.commit()
-      console.log("NotificationBell: All notifications marked as read")
-    } catch (error) {
-      console.error("NotificationBell: Error marking all notifications as read:", error)
     }
   }
 
