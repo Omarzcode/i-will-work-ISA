@@ -5,6 +5,7 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverT
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { MaintenanceRequest } from "@/lib/types"
+import { PRIORITY_OPTIONS } from "@/lib/types"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +13,19 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Search, Calendar, ImageIcon, CheckCircle, Clock, AlertCircle, Star, Eye, Building, Filter } from "lucide-react"
+import {
+  Search,
+  Calendar,
+  ImageIcon,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Star,
+  Eye,
+  Building,
+  Filter,
+  AlertTriangle,
+} from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { useToast } from "@/hooks/use-toast"
@@ -24,6 +37,7 @@ export default function ManagerPage() {
   const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [priorityFilter, setPriorityFilter] = useState("all")
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
@@ -66,8 +80,12 @@ export default function ManagerPage() {
       filtered = filtered.filter((request) => request.status === statusFilter)
     }
 
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter((request) => request.priority === priorityFilter)
+    }
+
     setFilteredRequests(filtered)
-  }, [searchQuery, statusFilter, requests])
+  }, [searchQuery, statusFilter, priorityFilter, requests])
 
   const createNotificationForBranch = async (
     requestId: string,
@@ -135,6 +153,31 @@ export default function ManagerPage() {
   const handleImageClick = (imageUrl: string, alt: string) => {
     setSelectedImage({ src: imageUrl, alt })
     setImageViewerOpen(true)
+  }
+
+  const getPriorityColor = (priority?: string) => {
+    const priorityOption = PRIORITY_OPTIONS.find((p) => p.value === priority)
+    return priorityOption?.color || "bg-gray-100 text-gray-800 border-gray-200"
+  }
+
+  const getPriorityIcon = (priority?: string) => {
+    switch (priority) {
+      case "urgent":
+        return <AlertTriangle className="w-4 h-4" />
+      case "high":
+        return <AlertCircle className="w-4 h-4" />
+      case "medium":
+        return <Clock className="w-4 h-4" />
+      case "low":
+        return <CheckCircle className="w-4 h-4" />
+      default:
+        return <Clock className="w-4 h-4" />
+    }
+  }
+
+  const getPriorityText = (priority?: string) => {
+    const priorityOption = PRIORITY_OPTIONS.find((p) => p.value === priority)
+    return priorityOption?.label || "Medium"
   }
 
   const getStatusColor = (status: string) => {
@@ -401,6 +444,29 @@ export default function ManagerPage() {
                 </SelectItem>
               </SelectContent>
             </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="h-12 rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-base bg-white/80 backdrop-blur-sm lg:w-48">
+                <AlertTriangle className="w-5 h-5 mr-2" />
+                <SelectValue placeholder="Filter by priority" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl">
+                <SelectItem value="all" className="h-12 text-base">
+                  All Priority
+                </SelectItem>
+                <SelectItem value="urgent" className="h-12 text-base">
+                  Urgent
+                </SelectItem>
+                <SelectItem value="high" className="h-12 text-base">
+                  High
+                </SelectItem>
+                <SelectItem value="medium" className="h-12 text-base">
+                  Medium
+                </SelectItem>
+                <SelectItem value="low" className="h-12 text-base">
+                  Low
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Requests List - Mobile optimized */}
@@ -413,7 +479,7 @@ export default function ManagerPage() {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-700 mb-2">No requests found</h3>
                   <p className="text-gray-500">
-                    {searchQuery || statusFilter !== "all"
+                    {searchQuery || statusFilter !== "all" || priorityFilter !== "all"
                       ? "Try adjusting your search or filter criteria"
                       : "No maintenance requests at the moment"}
                   </p>
@@ -445,6 +511,12 @@ export default function ManagerPage() {
                               >
                                 {getStatusIcon(request.status)}
                                 <span className="font-medium">{getStatusText(request.status)}</span>
+                              </Badge>
+                              <Badge
+                                className={`${getPriorityColor(request.priority)} border rounded-full px-3 py-1 flex items-center gap-1`}
+                              >
+                                {getPriorityIcon(request.priority)}
+                                <span className="font-medium">{getPriorityText(request.priority)}</span>
                               </Badge>
                               {request.rating && (
                                 <Badge className="bg-yellow-50 text-yellow-800 border-yellow-200 rounded-full px-3 py-1 flex items-center gap-1">
@@ -533,15 +605,30 @@ export default function ManagerPage() {
                                       <p className="text-base text-gray-900 mt-1">{selectedRequest.problemType}</p>
                                     </div>
                                   </div>
-                                  <div>
-                                    <label className="text-sm font-medium text-gray-700">Current Status</label>
-                                    <div className="mt-1">
-                                      <Badge
-                                        className={`${getStatusColor(selectedRequest.status)} border rounded-full px-3 py-1 flex items-center gap-1 w-fit`}
-                                      >
-                                        {getStatusIcon(selectedRequest.status)}
-                                        <span className="font-medium">{getStatusText(selectedRequest.status)}</span>
-                                      </Badge>
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Current Status</label>
+                                      <div className="mt-1">
+                                        <Badge
+                                          className={`${getStatusColor(selectedRequest.status)} border rounded-full px-3 py-1 flex items-center gap-1 w-fit`}
+                                        >
+                                          {getStatusIcon(selectedRequest.status)}
+                                          <span className="font-medium">{getStatusText(selectedRequest.status)}</span>
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-700">Priority</label>
+                                      <div className="mt-1">
+                                        <Badge
+                                          className={`${getPriorityColor(selectedRequest.priority)} border rounded-full px-3 py-1 flex items-center gap-1 w-fit`}
+                                        >
+                                          {getPriorityIcon(selectedRequest.priority)}
+                                          <span className="font-medium">
+                                            {getPriorityText(selectedRequest.priority)}
+                                          </span>
+                                        </Badge>
+                                      </div>
                                     </div>
                                   </div>
                                   <div>
