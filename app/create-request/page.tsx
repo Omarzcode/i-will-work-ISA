@@ -370,7 +370,7 @@ export default function CreateRequestPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  Be specific about the location and nature of the problem
+                  Be specific about the type and nature of the problem
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
@@ -379,10 +379,6 @@ export default function CreateRequestPage() {
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                   Set the appropriate priority level to help us respond accordingly
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  You'll receive notifications about status updates on your request
                 </li>
               </ul>
             </CardContent>
