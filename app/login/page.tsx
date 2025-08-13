@@ -130,10 +130,17 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Need Help Link */}
-            <div className="text-center mt-6">
-              <button className="text-blue-600 hover:text-blue-700 font-medium transition-colors">Need help?</button>
-            </div>
+            {/* app Link */}
+<div className="text-center mt-6">
+  <a
+    href="/app-release.apk"
+    download
+    className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+  >
+    Download the app for Android
+  </a>
+</div>
+
           </CardContent>
         </Card>
 
