@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { uploadImage } from "@/lib/imgbb"
+import { uploadToImgBB } from "@/lib/imgbb"
 import { useAuth } from "@/hooks/useAuth"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Button } from "@/components/ui/button"
@@ -79,7 +79,7 @@ export default function CreateRequestPage() {
     try {
       let imageUrl = null
       if (image) {
-        imageUrl = await uploadImage(image)
+        imageUrl = await uploadToImgBB(image)
       }
 
       await addDoc(collection(db, "requests"), {
