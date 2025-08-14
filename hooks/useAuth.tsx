@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from "firebase/auth"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
@@ -16,15 +15,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
-}
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -32,54 +23,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         try {
-          // Try to get user data from Firestore
+          console.log("Auth state changed - user logged in:", firebaseUser.email)
+
+          // Get user data from Firestore
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid))
 
           if (userDoc.exists()) {
             const userData = userDoc.data()
-            setUser({
+            const user: User = {
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
-              branchCode: userData.branchCode,
+              branchCode: userData.branchCode || "",
               isManager: userData.isManager || false,
-            })
+            }
+            console.log("User data loaded:", user)
+            setUser(user)
           } else {
-            // Create user data based on email
-            const isManager = firebaseUser.email?.includes("manager") || false
-            const branchCode = isManager ? "HQ" : firebaseUser.email?.split("@")[0] || "unknown"
-
-            const newUserData = {
+            console.log("User document not found, creating default user")
+            // Create default user document if it doesn't exist
+            const defaultUser: User = {
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
-              branchCode,
-              isManager,
-              createdAt: new Date(),
+              branchCode: "001", // Default branch
+              isManager: false,
             }
 
-            // Save to Firestore
-            await setDoc(doc(db, "users", firebaseUser.uid), newUserData)
-
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email!,
-              branchCode,
-              isManager,
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+              email: defaultUser.email,
+              branchCode: defaultUser.branchCode,
+              isManager: defaultUser.isManager,
             })
+
+            setUser(defaultUser)
           }
         } catch (error) {
-          console.error("Error fetching user data:", error)
-          // Fallback user creation without Firestore
-          const isManager = firebaseUser.email?.includes("manager") || false
-          const branchCode = isManager ? "HQ" : firebaseUser.email?.split("@")[0] || "unknown"
-
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email!,
-            branchCode,
-            isManager,
-          })
+          console.error("Error loading user data:", error)
+          setUser(null)
         }
       } else {
+        console.log("Auth state changed - user logged out")
         setUser(null)
       }
       setLoading(false)
@@ -90,7 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
+      console.log("Attempting login for:", email)
       await signInWithEmailAndPassword(auth, email, password)
+      console.log("Login successful")
     } catch (error) {
       console.error("Login error:", error)
       throw error
@@ -99,7 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      console.log("Logging out user")
       await signOut(auth)
+      setUser(null)
+      console.log("Logout successful")
     } catch (error) {
       console.error("Logout error:", error)
       throw error
@@ -114,4 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+  return context
 }

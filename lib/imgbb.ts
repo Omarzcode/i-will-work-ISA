@@ -14,3 +14,9 @@ export async function uploadToImgBB(file: File): Promise<string> {
   const data = await response.json()
   return data.data.url
 }
+
+// Add the uploadImage export that was being imported
+export async function uploadImage(file: File): Promise<{ url: string }> {
+  const url = await uploadToImgBB(file)
+  return { url }
+}

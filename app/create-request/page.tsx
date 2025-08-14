@@ -3,46 +3,83 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { uploadToImgBB } from "@/lib/imgbb"
+import { uploadImage } from "@/lib/imgbb"
 import { useAuth } from "@/hooks/useAuth"
+import { useNotifications } from "@/hooks/useNotifications"
+import { useToast } from "@/hooks/use-toast"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
-import { Camera, Upload, X, CheckCircle, AlertCircle, FileText, Send } from "lucide-react"
-import Image from "next/image"
-
-const problemTypes = [
-  "Electrical Issues",
-  "Plumbing Problems",
-  "HVAC/Air Conditioning",
-  "Lighting",
-  "Furniture Repair",
-  "Equipment Malfunction",
-  "Cleaning Services",
-  "Security Systems",
-  "Network/IT Issues",
-  "Building Maintenance",
-  "Other",
-]
+import { Badge } from "@/components/ui/badge"
+import {
+  Upload,
+  AlertCircle,
+  Wrench,
+  Zap,
+  Droplets,
+  Thermometer,
+  Lightbulb,
+  Shield,
+  Wifi,
+  Armchair,
+  Sparkles,
+  HelpCircle,
+  Flag,
+  AlertTriangle,
+  Circle,
+} from "lucide-react"
+import { PROBLEM_TYPES, PRIORITY_OPTIONS } from "@/lib/types"
 
 export default function CreateRequestPage() {
   const { user } = useAuth()
+  const { createNotification } = useNotifications()
   const { toast } = useToast()
-  const [formData, setFormData] = useState({
-    problemType: "",
-    description: "",
-    priority: "medium",
-  })
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [selectedType, setSelectedType] = useState("")
+  const [selectedPriority, setSelectedPriority] = useState<"low" | "medium" | "high" | "urgent">("medium")
+  const [description, setDescription] = useState("")
   const [image, setImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1)
+
+  const problemTypeIcons = {
+    "Air Conditioning": Thermometer,
+    Electrical: Zap,
+    Plumbing: Droplets,
+    Heating: Thermometer,
+    Lighting: Lightbulb,
+    "Security System": Shield,
+    "Internet/Network": Wifi,
+    Furniture: Armchair,
+    Cleaning: Sparkles,
+    Other: HelpCircle,
+  }
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return <Zap className="w-4 h-4" />
+      case "high":
+        return <AlertTriangle className="w-4 h-4" />
+      case "medium":
+        return <Flag className="w-4 h-4" />
+      case "low":
+        return <Circle className="w-4 h-4" />
+      default:
+        return <Circle className="w-4 h-4" />
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    const priorityOption = PRIORITY_OPTIONS.find((p) => p.value === priority)
+    return priorityOption?.color || "bg-gray-100 text-gray-800 border-gray-200"
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -55,334 +92,269 @@ export default function CreateRequestPage() {
         })
         return
       }
-
       setImage(file)
       const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
+      reader.onload = (e) => setImagePreview(e.target?.result as string)
       reader.readAsDataURL(file)
     }
-  }
-
-  const removeImage = () => {
-    setImage(null)
-    setImagePreview(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
 
-    setIsSubmitting(true)
+    if (!selectedType || !description.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a problem type and provide a description",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setLoading(true)
 
     try {
-      let imageUrl = null
+      let imageUrl = ""
       if (image) {
-        imageUrl = await uploadToImgBB(image)
+        const uploadResult = await uploadImage(image)
+        imageUrl = uploadResult.url
       }
 
-      await addDoc(collection(db, "requests"), {
-        ...formData,
-        imageUrl,
+      // Create the maintenance request
+      const requestData = {
         branchCode: user.branchCode,
-        userEmail: user.email,
-        status: "قيد المراجعة",
+        problemType: selectedType,
+        description: description.trim(),
+        imageUrl,
         timestamp: serverTimestamp(),
+        status: "قيد المراجعة",
+        userId: user.uid,
+        priority: selectedPriority,
+      }
+
+      const docRef = await addDoc(collection(db, "requests"), requestData)
+
+      // Create notification for MANAGERS (isForManager: true)
+      await createNotification({
+        title: `New ${selectedType} Request`,
+        message: `A new ${selectedType} request has been submitted from Branch ${user.branchCode} and requires your attention.`,
+        type: "new_request",
+        read: false,
+        requestId: docRef.id,
+        branchCode: user.branchCode,
+        isForManager: true, // This goes to managers
       })
 
       toast({
-        title: "Request Submitted Successfully! 🎉",
-        description: "Your maintenance request has been submitted and is under review.",
+        title: "✅ Request Submitted",
+        description: "Your maintenance request has been submitted successfully",
       })
 
-      // Reset form
-      setFormData({
-        problemType: "",
-        description: "",
-        priority: "medium",
-      })
-      setImage(null)
-      setImagePreview(null)
-      setCurrentStep(1)
+      router.push("/my-requests")
     } catch (error) {
       console.error("Error submitting request:", error)
       toast({
-        title: "Submission Failed",
-        description: "There was an error submitting your request. Please try again.",
+        title: "❌ Error",
+        description: "Failed to submit request. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
-  const canProceedToStep2 = formData.problemType && formData.description.trim().length >= 10
-  const canSubmit = canProceedToStep2 && formData.priority
+  if (!user) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
+          <div className="text-center p-8">
+            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h1>
+            <p className="text-gray-600">Please log in to create a maintenance request.</p>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
 
   return (
     <AppLayout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
         <div className="px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
-          {/* Header */}
-          <div className="text-center lg:text-left mb-8">
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create New Request</h1>
-            <p className="text-gray-600">Submit a maintenance request for your branch</p>
-          </div>
-
-          {/* Progress Steps - Mobile optimized */}
-          <div className="mb-8">
-            <div className="flex items-center justify-center lg:justify-start gap-4 mb-4">
-              <div className={`flex items-center gap-2 ${currentStep >= 1 ? "text-blue-600" : "text-gray-400"}`}>
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    currentStep >= 1 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
-                  }`}
-                >
-                  {currentStep > 1 ? <CheckCircle className="w-4 h-4" /> : "1"}
-                </div>
-                <span className="font-medium hidden sm:inline">Problem Details</span>
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Wrench className="w-8 h-8 text-blue-600" />
               </div>
-              <div className="w-8 h-0.5 bg-gray-200">
-                <div
-                  className={`h-full transition-all duration-300 ${
-                    currentStep >= 2 ? "bg-blue-600 w-full" : "bg-gray-200 w-0"
-                  }`}
-                />
-              </div>
-              <div className={`flex items-center gap-2 ${currentStep >= 2 ? "text-blue-600" : "text-gray-400"}`}>
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    currentStep >= 2 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
-                  }`}
-                >
-                  {currentStep > 2 ? <CheckCircle className="w-4 h-4" /> : "2"}
-                </div>
-                <span className="font-medium hidden sm:inline">Additional Info</span>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create Maintenance Request</h1>
+              <p className="text-gray-600">Submit a new maintenance request for your branch</p>
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-3 py-1">
+                  Branch {user.branchCode}
+                </Badge>
               </div>
             </div>
-          </div>
 
-          <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
-            {/* Step 1: Problem Details */}
-            {currentStep === 1 && (
-              <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                    Problem Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
+            <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+              <CardHeader className="pb-6">
+                <CardTitle className="text-xl font-semibold text-gray-900">Request Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Problem Type Selection */}
                   <div>
-                    <Label htmlFor="problemType" className="text-base font-medium text-gray-700 mb-3 block">
-                      What type of problem are you experiencing? *
+                    <Label className="text-base font-medium text-gray-900 mb-4 block">
+                      What type of problem are you experiencing?
                     </Label>
-                    <Select
-                      value={formData.problemType}
-                      onValueChange={(value) => setFormData({ ...formData, problemType: value })}
-                    >
-                      <SelectTrigger className="h-12 rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-base bg-white">
-                        <SelectValue placeholder="Select problem type" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl">
-                        {problemTypes.map((type) => (
-                          <SelectItem key={type} value={type} className="h-12 text-base">
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="description" className="text-base font-medium text-gray-700 mb-3 block">
-                      Describe the problem in detail *
-                    </Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Please provide a detailed description of the issue, including location, when it started, and any other relevant information..."
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={6}
-                      className="rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-base resize-none bg-white"
-                      required
-                    />
-                    <div className="flex justify-between items-center mt-2">
-                      <p className="text-sm text-gray-500">Minimum 10 characters required</p>
-                      <p
-                        className={`text-sm ${formData.description.length >= 10 ? "text-green-600" : "text-gray-400"}`}
-                      >
-                        {formData.description.length}/500
-                      </p>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                      {PROBLEM_TYPES.map((type) => {
+                        const IconComponent = problemTypeIcons[type as keyof typeof problemTypeIcons]
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setSelectedType(type)}
+                            className={`p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
+                              selectedType === type
+                                ? "border-blue-500 bg-blue-50 text-blue-900"
+                                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`p-2 rounded-xl ${selectedType === type ? "bg-blue-100" : "bg-gray-100"}`}
+                              >
+                                <IconComponent
+                                  className={`w-5 h-5 ${selectedType === type ? "text-blue-600" : "text-gray-600"}`}
+                                />
+                              </div>
+                              <span className="font-medium text-sm">{type}</span>
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
 
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      onClick={() => setCurrentStep(2)}
-                      disabled={!canProceedToStep2}
-                      className="bg-blue-600 hover:bg-blue-700 rounded-2xl h-12 px-8"
-                    >
-                      Continue
-                      <CheckCircle className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 2: Additional Information */}
-            {currentStep === 2 && (
-              <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <AlertCircle className="w-5 h-5 text-blue-600" />
-                    Additional Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                  {/* Priority Selection */}
                   <div>
-                    <Label htmlFor="priority" className="text-base font-medium text-gray-700 mb-3 block">
-                      Priority Level *
+                    <Label className="text-base font-medium text-gray-900 mb-4 block">Priority Level</Label>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {PRIORITY_OPTIONS.map((priority) => (
+                        <button
+                          key={priority.value}
+                          type="button"
+                          onClick={() => setSelectedPriority(priority.value as "low" | "medium" | "high" | "urgent")}
+                          className={`p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
+                            selectedPriority === priority.value
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            {getPriorityIcon(priority.value)}
+                            <span className="font-medium text-sm">{priority.label}</span>
+                          </div>
+                          <Badge className={`${getPriorityColor(priority.value)} border rounded-full text-xs`}>
+                            {priority.label}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <Label htmlFor="description" className="text-base font-medium text-gray-900 mb-2 block">
+                      Describe the problem in detail
                     </Label>
-                    <Select
-                      value={formData.priority}
-                      onValueChange={(value) => setFormData({ ...formData, priority: value })}
-                    >
-                      <SelectTrigger className="h-12 rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-base bg-white">
-                        <SelectValue placeholder="Select priority" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl">
-                        <SelectItem value="low" className="h-12 text-base">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                            Low - Can wait a few days
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="medium" className="h-12 text-base">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                            Medium - Should be addressed soon
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="high" className="h-12 text-base">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                            High - Urgent attention needed
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Textarea
+                      id="description"
+                      placeholder="Please provide a detailed description of the issue, including when it started, what you've tried, and any other relevant information..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={4}
+                      className="rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-base resize-none"
+                      required
+                    />
                   </div>
 
+                  {/* Image Upload */}
                   <div>
-                    <Label className="text-base font-medium text-gray-700 mb-3 block">Add Photo (Optional)</Label>
+                    <Label className="text-base font-medium text-gray-900 mb-2 block">Add a photo (optional)</Label>
                     <div className="space-y-4">
-                      {!imagePreview ? (
-                        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-400 transition-colors bg-white">
-                          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <Camera className="w-8 h-8 text-blue-600" />
+                      <div className="flex items-center justify-center w-full">
+                        <label
+                          htmlFor="image-upload"
+                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                            <p className="mb-2 text-sm text-gray-500">
+                              <span className="font-semibold">Click to upload</span> or drag and drop
+                            </p>
+                            <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
                           </div>
-                          <p className="text-gray-600 mb-4">
-                            Take a photo or upload an image to help us understand the problem better
-                          </p>
-                          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="rounded-2xl h-12 px-6 border-2 bg-transparent"
-                              onClick={() => document.getElementById("image-upload")?.click()}
-                            >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Choose File
-                            </Button>
-                          </div>
-                          <input
+                          <Input
                             id="image-upload"
                             type="file"
                             accept="image/*"
                             onChange={handleImageChange}
                             className="hidden"
                           />
-                          <p className="text-sm text-gray-500 mt-3">Maximum file size: 5MB</p>
-                        </div>
-                      ) : (
-                        <div className="relative rounded-2xl overflow-hidden bg-white border-2 border-gray-200">
-                          <Image
+                        </label>
+                      </div>
+                      {imagePreview && (
+                        <div className="relative">
+                          <img
                             src={imagePreview || "/placeholder.svg"}
                             alt="Preview"
-                            width={400}
-                            height={300}
-                            className="w-full h-64 object-cover"
+                            className="w-full h-48 object-cover rounded-2xl border-2 border-gray-200"
                           />
                           <Button
                             type="button"
                             variant="destructive"
-                            size="icon"
-                            onClick={removeImage}
-                            className="absolute top-3 right-3 rounded-full w-8 h-8"
+                            size="sm"
+                            onClick={() => {
+                              setImage(null)
+                              setImagePreview(null)
+                            }}
+                            className="absolute top-2 right-2 rounded-xl"
                           >
-                            <X className="w-4 h-4" />
+                            Remove
                           </Button>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setCurrentStep(1)}
-                      className="rounded-2xl h-12 px-6 border-2 flex-1"
-                    >
-                      Back
-                    </Button>
+                  {/* Submit Button */}
+                  <div className="pt-4">
                     <Button
                       type="submit"
-                      disabled={!canSubmit || isSubmitting}
-                      className="bg-green-600 hover:bg-green-700 rounded-2xl h-12 px-8 flex-1"
+                      disabled={loading || !selectedType || !description.trim()}
+                      className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-base font-medium"
                     >
-                      {isSubmitting ? (
+                      {loading ? (
                         <div className="flex items-center gap-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                          Submitting...
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                          Submitting Request...
                         </div>
                       ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" />
+                        <div className="flex items-center gap-2">
+                          <Wrench className="w-5 h-5" />
                           Submit Request
-                        </>
+                        </div>
                       )}
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </form>
-
-          {/* Help Section */}
-          <Card className="rounded-3xl border-0 shadow-sm bg-white/60 backdrop-blur-sm mt-8 max-w-2xl mx-auto">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-3">💡 Tips for better requests:</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  Be specific about the type and nature of the problem
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  Include photos when possible to help our team understand the issue
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  Set the appropriate priority level to help us respond accordingly
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </AppLayout>
