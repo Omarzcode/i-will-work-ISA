@@ -3,7 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from "firebase/auth"
-import { doc, getDoc } from "firebase/firestore"
+import { doc, getDoc, setDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
 import type { User } from "@/lib/types"
 
@@ -48,6 +48,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const isManager = firebaseUser.email?.includes("manager") || false
             const branchCode = isManager ? "HQ" : firebaseUser.email?.split("@")[0] || "unknown"
 
+            const newUserData = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email!,
+              branchCode,
+              isManager,
+              createdAt: new Date(),
+            }
+
+            // Save to Firestore
+            await setDoc(doc(db, "users", firebaseUser.uid), newUserData)
+
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
@@ -57,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           console.error("Error fetching user data:", error)
-          // Fallback user creation
+          // Fallback user creation without Firestore
           const isManager = firebaseUser.email?.includes("manager") || false
           const branchCode = isManager ? "HQ" : firebaseUser.email?.split("@")[0] || "unknown"
 
@@ -78,19 +89,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password)
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+    } catch (error) {
+      console.error("Login error:", error)
+      throw error
+    }
   }
 
   const logout = async () => {
-    await signOut(auth)
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.error("Logout error:", error)
+      throw error
+    }
   }
 
-  const value = {
+  const contextValue: AuthContextType = {
     user,
     loading,
     login,
     logout,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }
