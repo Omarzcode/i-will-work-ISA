@@ -28,6 +28,9 @@ import {
   Circle,
   Trash2,
   ImageIcon,
+  ArrowRight,
+  Play,
+  Check,
 } from "lucide-react"
 import type { MaintenanceRequest } from "@/lib/types"
 import { PRIORITY_OPTIONS } from "@/lib/types"
@@ -83,6 +86,28 @@ const getTimeAgo = (timestamp: any) => {
   return date.toLocaleDateString()
 }
 
+// Get next status in the workflow
+const getNextStatus = (currentStatus: string) => {
+  switch (currentStatus) {
+    case "قيد المراجعة":
+      return { status: "معتمد", label: "Approve", icon: CheckCircle, color: "bg-green-600 hover:bg-green-700" }
+    case "معتمد":
+      return { status: "قيد التنفيذ", label: "Start Work", icon: Play, color: "bg-blue-600 hover:bg-blue-700" }
+    case "قيد التنفيذ":
+      return { status: "مكتمل", label: "Complete", icon: Check, color: "bg-green-600 hover:bg-green-700" }
+    default:
+      return null
+  }
+}
+
+// Get reject option for pending requests
+const getRejectOption = (currentStatus: string) => {
+  if (currentStatus === "قيد المراجعة") {
+    return { status: "مرفوض", label: "Reject", icon: XCircle, color: "bg-red-600 hover:bg-red-700" }
+  }
+  return null
+}
+
 export default function ManagerPage() {
   const { user } = useAuth()
   const { createNotification } = useNotifications()
@@ -93,6 +118,7 @@ export default function ManagerPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [branchFilter, setBranchFilter] = useState<string>("all")
+  const [updatingRequest, setUpdatingRequest] = useState<string | null>(null)
 
   // Cleanup old requests
   const cleanupOldRequests = async () => {
@@ -163,6 +189,7 @@ export default function ManagerPage() {
   }, [user])
 
   const updateRequestStatus = async (requestId: string, newStatus: string, request: MaintenanceRequest) => {
+    setUpdatingRequest(requestId)
     try {
       console.log("Updating request status:", requestId, "to:", newStatus)
 
@@ -197,6 +224,8 @@ export default function ManagerPage() {
         description: "Failed to update request status",
         variant: "destructive",
       })
+    } finally {
+      setUpdatingRequest(null)
     }
   }
 
@@ -344,195 +373,242 @@ export default function ManagerPage() {
 
           {/* Requests Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {filteredRequests.map((request) => (
-              <Card key={request.id} className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-3 sm:pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 mb-2 truncate">
-                        {request.problemType}
-                      </CardTitle>
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-3">
-                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          <span className="hidden sm:inline">Branch </span>
-                          {request.branchCode}
-                        </Badge>
-                        <Badge
-                          className={`${getPriorityColor(request.priority || "medium")} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
-                        >
-                          {getPriorityIcon(request.priority || "medium")}
-                          <span className="truncate">
-                            {PRIORITY_OPTIONS.find((p) => p.value === request.priority)?.label || "Medium"}
-                          </span>
-                        </Badge>
-                      </div>
-                    </div>
-                    {/* Time ago badge - positioned in top right */}
-                    <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs ml-2 flex-shrink-0">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {getTimeAgo(request.timestamp)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed">
-                    {request.description}
-                  </p>
+            {filteredRequests.map((request) => {
+              const nextStatus = getNextStatus(request.status)
+              const rejectOption = getRejectOption(request.status)
 
-                  <div className="flex items-center justify-between mb-4">
-                    <Badge
-                      className={`${getStatusColor(request.status)} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
-                    >
-                      {getStatusIcon(request.status)}
-                      <span className="truncate">
-                        {statusOptions.find((s) => s.value === request.status)?.label || request.status}
-                      </span>
-                    </Badge>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      {request.imageUrl && (
-                        <div className="flex items-center gap-1">
-                          <ImageIcon className="w-3 h-3" />
-                          <span className="hidden sm:inline">Photo</span>
+              return (
+                <Card key={request.id} className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+                  <CardHeader className="pb-3 sm:pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 mb-2 truncate">
+                          {request.problemType}
+                        </CardTitle>
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-3">
+                          <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            <span className="hidden sm:inline">Branch </span>
+                            {request.branchCode}
+                          </Badge>
+                          <Badge
+                            className={`${getPriorityColor(request.priority || "medium")} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
+                          >
+                            {getPriorityIcon(request.priority || "medium")}
+                            <span className="truncate">
+                              {PRIORITY_OPTIONS.find((p) => p.value === request.priority)?.label || "Medium"}
+                            </span>
+                          </Badge>
                         </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span className="hidden sm:inline">
-                          {request.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
-                        </span>
                       </div>
+                      {/* Time ago badge - positioned in top right */}
+                      <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs ml-2 flex-shrink-0">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {getTimeAgo(request.timestamp)}
+                      </Badge>
                     </div>
-                  </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed">
+                      {request.description}
+                    </p>
 
-                  <div className="flex gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 rounded-2xl border-2 bg-transparent text-xs sm:text-sm h-8 sm:h-9"
-                          onClick={() => setSelectedRequest(request)}
-                        >
-                          <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                          <span className="hidden sm:inline">View Details</span>
-                          <span className="sm:hidden">Details</span>
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="mx-4 max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle className="text-lg sm:text-xl font-semibold">Request Details</DialogTitle>
-                        </DialogHeader>
-                        {selectedRequest && (
-                          <div className="space-y-4 sm:space-y-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                  Problem Type
-                                </label>
-                                <p className="text-sm sm:text-base text-gray-900">{selectedRequest.problemType}</p>
-                              </div>
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                  Branch
-                                </label>
-                                <p className="text-sm sm:text-base text-gray-900">
-                                  Branch {selectedRequest.branchCode}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                  Priority
-                                </label>
-                                <Badge
-                                  className={`${getPriorityColor(selectedRequest.priority || "medium")} border rounded-full px-2 py-1 text-xs`}
-                                >
-                                  {getPriorityIcon(selectedRequest.priority || "medium")}
-                                  <span className="ml-1">
-                                    {PRIORITY_OPTIONS.find((p) => p.value === selectedRequest.priority)?.label ||
-                                      "Medium"}
-                                  </span>
-                                </Badge>
-                              </div>
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                  Current Status
-                                </label>
-                                <Badge
-                                  className={`${getStatusColor(selectedRequest.status)} border rounded-full px-2 py-1 text-xs`}
-                                >
-                                  {getStatusIcon(selectedRequest.status)}
-                                  <span className="ml-1">
-                                    {statusOptions.find((s) => s.value === selectedRequest.status)?.label}
-                                  </span>
-                                </Badge>
-                              </div>
-                              <div className="sm:col-span-2">
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                  Submitted
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm sm:text-base text-gray-900">
-                                    {selectedRequest.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
-                                  </p>
-                                  <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs">
-                                    {getTimeAgo(selectedRequest.timestamp)}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                                Description
-                              </label>
-                              <p className="text-sm sm:text-base text-gray-900 bg-gray-50 p-3 sm:p-4 rounded-2xl leading-relaxed">
-                                {selectedRequest.description}
-                              </p>
-                            </div>
-
-                            {selectedRequest.imageUrl && (
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                                  Attached Image
-                                </label>
-                                <ImageViewer src={selectedRequest.imageUrl || "/placeholder.svg"} alt="Request image" />
-                              </div>
-                            )}
-
-                            <div>
-                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                                Update Status
-                              </label>
-                              <Select
-                                value={selectedRequest.status}
-                                onValueChange={(newStatus) =>
-                                  updateRequestStatus(selectedRequest.id, newStatus, selectedRequest)
-                                }
-                              >
-                                <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {statusOptions.map((status) => (
-                                    <SelectItem key={status.value} value={status.value}>
-                                      <div className="flex items-center gap-2">
-                                        <status.icon className="w-4 h-4" />
-                                        {status.label}
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                    <div className="flex items-center justify-between mb-4">
+                      <Badge
+                        className={`${getStatusColor(request.status)} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
+                      >
+                        {getStatusIcon(request.status)}
+                        <span className="truncate">
+                          {statusOptions.find((s) => s.value === request.status)?.label || request.status}
+                        </span>
+                      </Badge>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        {request.imageUrl && (
+                          <div className="flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" />
+                            <span className="hidden sm:inline">Photo</span>
                           </div>
                         )}
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span className="hidden sm:inline">
+                            {request.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Action Buttons */}
+                    <div className="flex flex-col gap-2 mb-4">
+                      {nextStatus && (
+                        <Button
+                          onClick={() => updateRequestStatus(request.id, nextStatus.status, request)}
+                          disabled={updatingRequest === request.id}
+                          className={`${nextStatus.color} text-white rounded-2xl text-xs sm:text-sm h-8 sm:h-9 flex items-center justify-center gap-2`}
+                        >
+                          {updatingRequest === request.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                          ) : (
+                            <>
+                              <nextStatus.icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              {nextStatus.label}
+                              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </>
+                          )}
+                        </Button>
+                      )}
+
+                      {rejectOption && (
+                        <Button
+                          onClick={() => updateRequestStatus(request.id, rejectOption.status, request)}
+                          disabled={updatingRequest === request.id}
+                          variant="outline"
+                          className={`${rejectOption.color} text-white border-red-600 rounded-2xl text-xs sm:text-sm h-8 sm:h-9 flex items-center justify-center gap-2`}
+                        >
+                          {updatingRequest === request.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent" />
+                          ) : (
+                            <>
+                              <rejectOption.icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              {rejectOption.label}
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 rounded-2xl border-2 bg-transparent text-xs sm:text-sm h-8 sm:h-9"
+                            onClick={() => setSelectedRequest(request)}
+                          >
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">View Details</span>
+                            <span className="sm:hidden">Details</span>
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="mx-4 max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="text-lg sm:text-xl font-semibold">Request Details</DialogTitle>
+                          </DialogHeader>
+                          {selectedRequest && (
+                            <div className="space-y-4 sm:space-y-6">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                    Problem Type
+                                  </label>
+                                  <p className="text-sm sm:text-base text-gray-900">{selectedRequest.problemType}</p>
+                                </div>
+                                <div>
+                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                    Branch
+                                  </label>
+                                  <p className="text-sm sm:text-base text-gray-900">
+                                    Branch {selectedRequest.branchCode}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                    Priority
+                                  </label>
+                                  <Badge
+                                    className={`${getPriorityColor(selectedRequest.priority || "medium")} border rounded-full px-2 py-1 text-xs`}
+                                  >
+                                    {getPriorityIcon(selectedRequest.priority || "medium")}
+                                    <span className="ml-1">
+                                      {PRIORITY_OPTIONS.find((p) => p.value === selectedRequest.priority)?.label ||
+                                        "Medium"}
+                                    </span>
+                                  </Badge>
+                                </div>
+                                <div>
+                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                    Current Status
+                                  </label>
+                                  <Badge
+                                    className={`${getStatusColor(selectedRequest.status)} border rounded-full px-2 py-1 text-xs`}
+                                  >
+                                    {getStatusIcon(selectedRequest.status)}
+                                    <span className="ml-1">
+                                      {statusOptions.find((s) => s.value === selectedRequest.status)?.label}
+                                    </span>
+                                  </Badge>
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                    Submitted
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm sm:text-base text-gray-900">
+                                      {selectedRequest.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
+                                    </p>
+                                    <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs">
+                                      {getTimeAgo(selectedRequest.timestamp)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                                  Description
+                                </label>
+                                <p className="text-sm sm:text-base text-gray-900 bg-gray-50 p-3 sm:p-4 rounded-2xl leading-relaxed">
+                                  {selectedRequest.description}
+                                </p>
+                              </div>
+
+                              {selectedRequest.imageUrl && (
+                                <div>
+                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                                    Attached Image
+                                  </label>
+                                  <ImageViewer
+                                    src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                    alt="Request image"
+                                  />
+                                </div>
+                              )}
+
+                              <div>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                                  Update Status
+                                </label>
+                                <Select
+                                  value={selectedRequest.status}
+                                  onValueChange={(newStatus) =>
+                                    updateRequestStatus(selectedRequest.id, newStatus, selectedRequest)
+                                  }
+                                >
+                                  <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {statusOptions.map((status) => (
+                                      <SelectItem key={status.value} value={status.value}>
+                                        <div className="flex items-center gap-2">
+                                          <status.icon className="w-4 h-4" />
+                                          {status.label}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
 
           {filteredRequests.length === 0 && (

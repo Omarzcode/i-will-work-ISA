@@ -8,7 +8,21 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell, Check, CheckCheck, Clock, FileText, Settings, AlertCircle } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Bell, Check, CheckCheck, Clock, FileText, Settings, AlertCircle, Trash2, X } from "lucide-react"
+import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { useToast } from "@/hooks/use-toast"
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -45,6 +59,8 @@ export function NotificationBell() {
   const { user } = useAuth()
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications()
   const [open, setOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const { toast } = useToast()
 
   const handleNotificationClick = async (notificationId: string, isRead: boolean) => {
     if (!isRead) {
@@ -56,6 +72,62 @@ export function NotificationBell() {
     console.log("View all notifications clicked")
     // You can implement navigation to a full notifications page here
     setOpen(false)
+  }
+
+  const clearAllNotifications = async () => {
+    if (!user) return
+
+    setClearing(true)
+    try {
+      const notificationsRef = collection(db, "notifications")
+      let q
+
+      if (user.isManager) {
+        // Clear notifications for managers
+        q = query(notificationsRef, where("isForManager", "==", true))
+      } else {
+        // Clear notifications for this branch user
+        q = query(notificationsRef, where("branchCode", "==", user.branchCode), where("isForManager", "==", false))
+      }
+
+      const snapshot = await getDocs(q)
+      const deletePromises = snapshot.docs.map((docSnapshot) => deleteDoc(doc(db, "notifications", docSnapshot.id)))
+
+      await Promise.all(deletePromises)
+
+      toast({
+        title: "🗑️ Notifications Cleared",
+        description: `Successfully cleared ${snapshot.docs.length} notifications`,
+      })
+
+      setOpen(false)
+    } catch (error) {
+      console.error("Error clearing notifications:", error)
+      toast({
+        title: "❌ Error",
+        description: "Failed to clear notifications. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      await deleteDoc(doc(db, "notifications", notificationId))
+      toast({
+        title: "🗑️ Notification Deleted",
+        description: "Notification removed successfully",
+      })
+    } catch (error) {
+      console.error("Error deleting notification:", error)
+      toast({
+        title: "❌ Error",
+        description: "Failed to delete notification",
+        variant: "destructive",
+      })
+    }
   }
 
   if (!user) return null
@@ -83,17 +155,52 @@ export function NotificationBell() {
               <CardTitle className="text-lg font-semibold text-gray-900">
                 {user.isManager ? "Manager Notifications" : `Branch ${user.branchCode} Notifications`}
               </CardTitle>
-              {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={markAllAsRead}
-                  className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl"
-                >
-                  <CheckCheck className="w-4 h-4 mr-1" />
-                  Mark all read
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={markAllAsRead}
+                    className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl"
+                  >
+                    <CheckCheck className="w-4 h-4 mr-1" />
+                    Mark all read
+                  </Button>
+                )}
+                {notifications.length > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Clear All
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-3xl">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Clear All Notifications?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete all your notifications from the database. This action cannot be
+                          undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={clearAllNotifications}
+                          disabled={clearing}
+                          className="rounded-2xl bg-red-600 hover:bg-red-700"
+                        >
+                          {clearing ? "Clearing..." : "Clear All"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </div>
             {user.isManager && <p className="text-sm text-gray-600">New requests from all branches</p>}
             {!user.isManager && <p className="text-sm text-gray-600">Status updates for your requests</p>}
@@ -120,8 +227,7 @@ export function NotificationBell() {
                     {notifications.slice(0, 10).map((notification) => (
                       <div
                         key={notification.id}
-                        onClick={() => handleNotificationClick(notification.id!, notification.read)}
-                        className={`p-3 rounded-2xl cursor-pointer transition-all duration-200 ${
+                        className={`group p-3 rounded-2xl cursor-pointer transition-all duration-200 relative ${
                           notification.read
                             ? "bg-gray-50 hover:bg-gray-100"
                             : "bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500"
@@ -129,7 +235,10 @@ export function NotificationBell() {
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex-shrink-0 mt-0.5">{getNotificationIcon(notification.type)}</div>
-                          <div className="flex-1 min-w-0">
+                          <div
+                            className="flex-1 min-w-0"
+                            onClick={() => handleNotificationClick(notification.id!, notification.read)}
+                          >
                             <div className="flex items-start justify-between gap-2">
                               <h4
                                 className={`text-sm font-medium truncate ${
@@ -154,6 +263,17 @@ export function NotificationBell() {
                               {notification.read && <Check className="w-3 h-3 text-gray-400" />}
                             </div>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteNotification(notification.id!)
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600 rounded-full"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
                         </div>
                       </div>
                     ))}
