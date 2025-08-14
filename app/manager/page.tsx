@@ -27,6 +27,7 @@ import {
   Flag,
   Circle,
   Trash2,
+  ImageIcon,
 } from "lucide-react"
 import type { MaintenanceRequest } from "@/lib/types"
 import { PRIORITY_OPTIONS } from "@/lib/types"
@@ -42,21 +43,44 @@ const statusOptions = [
 const getPriorityIcon = (priority: string) => {
   switch (priority) {
     case "urgent":
-      return <Zap className="w-4 h-4" />
+      return <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
     case "high":
-      return <AlertTriangle className="w-4 h-4" />
+      return <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4" />
     case "medium":
-      return <Flag className="w-4 h-4" />
+      return <Flag className="w-3 h-3 sm:w-4 sm:h-4" />
     case "low":
-      return <Circle className="w-4 h-4" />
+      return <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
     default:
-      return <Circle className="w-4 h-4" />
+      return <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
   }
 }
 
 const getPriorityColor = (priority: string) => {
   const priorityOption = PRIORITY_OPTIONS.find((p) => p.value === priority)
   return priorityOption?.color || "bg-gray-100 text-gray-800 border-gray-200"
+}
+
+// Time ago function
+const getTimeAgo = (timestamp: any) => {
+  if (!timestamp) return "Unknown"
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+  const now = new Date()
+  const diffInMs = now.getTime() - date.getTime()
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60))
+  const diffInHours = Math.floor(diffInMinutes / 60)
+  const diffInDays = Math.floor(diffInHours / 24)
+  const diffInWeeks = Math.floor(diffInDays / 7)
+  const diffInMonths = Math.floor(diffInDays / 30)
+
+  if (diffInMinutes < 1) return "Just now"
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+  if (diffInHours < 24) return `${diffInHours}h ago`
+  if (diffInDays < 7) return `${diffInDays}d ago`
+  if (diffInWeeks < 4) return `${diffInWeeks}w ago`
+  if (diffInMonths < 12) return `${diffInMonths}mo ago`
+
+  return date.toLocaleDateString()
 }
 
 export default function ManagerPage() {
@@ -180,9 +204,9 @@ export default function ManagerPage() {
     const statusOption = statusOptions.find((s) => s.value === status)
     if (statusOption) {
       const IconComponent = statusOption.icon
-      return <IconComponent className="w-4 h-4" />
+      return <IconComponent className="w-3 h-3 sm:w-4 sm:h-4" />
     }
-    return <Clock className="w-4 h-4" />
+    return <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
   }
 
   const getStatusColor = (status: string) => {
@@ -205,12 +229,12 @@ export default function ManagerPage() {
     return (
       <AppLayout>
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
-          <div className="text-center p-8">
-            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <XCircle className="w-8 h-8 text-red-600" />
+          <div className="text-center p-4 sm:p-8">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-gray-600">You need manager privileges to access this page.</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+            <p className="text-sm sm:text-base text-gray-600">You need manager privileges to access this page.</p>
           </div>
         </div>
       </AppLayout>
@@ -221,9 +245,9 @@ export default function ManagerPage() {
     return (
       <AppLayout>
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-          <div className="text-center p-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading requests...</p>
+          <div className="text-center p-4 sm:p-8">
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-sm sm:text-base text-gray-600">Loading requests...</p>
           </div>
         </div>
       </AppLayout>
@@ -235,24 +259,24 @@ export default function ManagerPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
         <div className="px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
           {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+          <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 mb-6 sm:mb-8">
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Manager Dashboard</h1>
-              <p className="text-gray-600">Manage maintenance requests from all branches</p>
-              <div className="flex items-center gap-2 mt-3">
-                <Badge className="bg-purple-100 text-purple-800 border-purple-200 rounded-full px-3 py-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Manager Dashboard</h1>
+              <p className="text-sm sm:text-base text-gray-600 mb-3">Manage maintenance requests from all branches</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-purple-100 text-purple-800 border-purple-200 rounded-full px-2 py-1 text-xs sm:px-3 sm:text-sm">
                   Manager View
                 </Badge>
-                <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-3 py-1">
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs sm:px-3 sm:text-sm">
                   {filteredRequests.length} Requests
                 </Badge>
               </div>
             </div>
-            <div className="mt-4 lg:mt-0">
+            <div className="w-full sm:w-auto">
               <Button
                 onClick={cleanupOldRequests}
                 variant="outline"
-                className="rounded-2xl border-2 hover:bg-red-50 hover:border-red-200 bg-transparent"
+                className="w-full sm:w-auto rounded-2xl border-2 hover:bg-red-50 hover:border-red-200 bg-transparent text-sm"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clean Old Requests
@@ -262,12 +286,12 @@ export default function ManagerPage() {
 
           {/* Filters */}
           <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm mb-6">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Status</label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="rounded-2xl border-2">
+                    <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11 text-sm">
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
@@ -282,9 +306,9 @@ export default function ManagerPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Priority</label>
                   <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="rounded-2xl border-2">
+                    <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11 text-sm">
                       <SelectValue placeholder="All Priorities" />
                     </SelectTrigger>
                     <SelectContent>
@@ -298,10 +322,10 @@ export default function ManagerPage() {
                   </Select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Branch</label>
                   <Select value={branchFilter} onValueChange={setBranchFilter}>
-                    <SelectTrigger className="rounded-2xl border-2">
+                    <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11 text-sm">
                       <SelectValue placeholder="All Branches" />
                     </SelectTrigger>
                     <SelectContent>
@@ -319,43 +343,65 @@ export default function ManagerPage() {
           </Card>
 
           {/* Requests Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {filteredRequests.map((request) => (
               <Card key={request.id} className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                <CardHeader className="pb-4">
+                <CardHeader className="pb-3 sm:pb-4">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg font-semibold text-gray-900 mb-2">{request.problemType}</CardTitle>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs">
-                          <MapPin className="w-3 h-3 mr-1" />
-                          Branch {request.branchCode}
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 mb-2 truncate">
+                        {request.problemType}
+                      </CardTitle>
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-3">
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="hidden sm:inline">Branch </span>
+                          {request.branchCode}
                         </Badge>
                         <Badge
-                          className={`${getPriorityColor(request.priority || "medium")} border rounded-full px-2 py-1 text-xs`}
+                          className={`${getPriorityColor(request.priority || "medium")} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
                         >
                           {getPriorityIcon(request.priority || "medium")}
-                          <span className="ml-1">
+                          <span className="truncate">
                             {PRIORITY_OPTIONS.find((p) => p.value === request.priority)?.label || "Medium"}
                           </span>
                         </Badge>
                       </div>
                     </div>
+                    {/* Time ago badge - positioned in top right */}
+                    <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs ml-2 flex-shrink-0">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {getTimeAgo(request.timestamp)}
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">{request.description}</p>
+                  <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed">
+                    {request.description}
+                  </p>
 
                   <div className="flex items-center justify-between mb-4">
-                    <Badge className={`${getStatusColor(request.status)} border rounded-full px-3 py-1`}>
+                    <Badge
+                      className={`${getStatusColor(request.status)} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
+                    >
                       {getStatusIcon(request.status)}
-                      <span className="ml-2">
+                      <span className="truncate">
                         {statusOptions.find((s) => s.value === request.status)?.label || request.status}
                       </span>
                     </Badge>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Calendar className="w-3 h-3 mr-1" />
-                      {request.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      {request.imageUrl && (
+                        <div className="flex items-center gap-1">
+                          <ImageIcon className="w-3 h-3" />
+                          <span className="hidden sm:inline">Photo</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span className="hidden sm:inline">
+                          {request.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -365,32 +411,41 @@ export default function ManagerPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 rounded-2xl border-2 bg-transparent"
+                          className="flex-1 rounded-2xl border-2 bg-transparent text-xs sm:text-sm h-8 sm:h-9"
                           onClick={() => setSelectedRequest(request)}
                         >
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Details
+                          <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">View Details</span>
+                          <span className="sm:hidden">Details</span>
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl rounded-3xl">
+                      <DialogContent className="mx-4 max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle className="text-xl font-semibold">Request Details</DialogTitle>
+                          <DialogTitle className="text-lg sm:text-xl font-semibold">Request Details</DialogTitle>
                         </DialogHeader>
                         {selectedRequest && (
-                          <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-4 sm:space-y-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Problem Type</label>
-                                <p className="text-gray-900">{selectedRequest.problemType}</p>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                  Problem Type
+                                </label>
+                                <p className="text-sm sm:text-base text-gray-900">{selectedRequest.problemType}</p>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
-                                <p className="text-gray-900">Branch {selectedRequest.branchCode}</p>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                  Branch
+                                </label>
+                                <p className="text-sm sm:text-base text-gray-900">
+                                  Branch {selectedRequest.branchCode}
+                                </p>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                  Priority
+                                </label>
                                 <Badge
-                                  className={`${getPriorityColor(selectedRequest.priority || "medium")} border rounded-full px-2 py-1`}
+                                  className={`${getPriorityColor(selectedRequest.priority || "medium")} border rounded-full px-2 py-1 text-xs`}
                                 >
                                   {getPriorityIcon(selectedRequest.priority || "medium")}
                                   <span className="ml-1">
@@ -400,9 +455,11 @@ export default function ManagerPage() {
                                 </Badge>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                  Current Status
+                                </label>
                                 <Badge
-                                  className={`${getStatusColor(selectedRequest.status)} border rounded-full px-2 py-1`}
+                                  className={`${getStatusColor(selectedRequest.status)} border rounded-full px-2 py-1 text-xs`}
                                 >
                                   {getStatusIcon(selectedRequest.status)}
                                   <span className="ml-1">
@@ -410,29 +467,50 @@ export default function ManagerPage() {
                                   </span>
                                 </Badge>
                               </div>
+                              <div className="sm:col-span-2">
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                                  Submitted
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm sm:text-base text-gray-900">
+                                    {selectedRequest.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
+                                  </p>
+                                  <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs">
+                                    {getTimeAgo(selectedRequest.timestamp)}
+                                  </Badge>
+                                </div>
+                              </div>
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                              <p className="text-gray-900 bg-gray-50 p-4 rounded-2xl">{selectedRequest.description}</p>
+                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                                Description
+                              </label>
+                              <p className="text-sm sm:text-base text-gray-900 bg-gray-50 p-3 sm:p-4 rounded-2xl leading-relaxed">
+                                {selectedRequest.description}
+                              </p>
                             </div>
 
                             {selectedRequest.imageUrl && (
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Attached Image</label>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                                  Attached Image
+                                </label>
                                 <ImageViewer src={selectedRequest.imageUrl || "/placeholder.svg"} alt="Request image" />
                               </div>
                             )}
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">Update Status</label>
+                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                                Update Status
+                              </label>
                               <Select
                                 value={selectedRequest.status}
                                 onValueChange={(newStatus) =>
                                   updateRequestStatus(selectedRequest.id, newStatus, selectedRequest)
                                 }
                               >
-                                <SelectTrigger className="rounded-2xl border-2">
+                                <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -458,12 +536,12 @@ export default function ManagerPage() {
           </div>
 
           {filteredRequests.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-gray-400" />
+            <div className="text-center py-8 sm:py-12">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Requests Found</h3>
-              <p className="text-gray-600">No maintenance requests match your current filters.</p>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No Requests Found</h3>
+              <p className="text-sm sm:text-base text-gray-600">No maintenance requests match your current filters.</p>
             </div>
           )}
         </div>

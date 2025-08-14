@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore"
+
 export interface User {
   uid: string
   email: string
@@ -6,41 +8,34 @@ export interface User {
 }
 
 export interface MaintenanceRequest {
-  id: string
+  id?: string
   branchCode: string
   problemType: string
   description: string
   imageUrl?: string
-  timestamp: any
+  timestamp: Timestamp | any
   status: string
   userId: string
-  priority?: "low" | "medium" | "high" | "urgent"
+  priority?: string
+  rating?: number
+  feedback?: string
+  completionMessage?: string
+  userEmail?: string
 }
 
 export interface Notification {
-  id: string
+  id?: string
   title: string
   message: string
-  type: "info" | "success" | "warning" | "error" | "new_request" | "status_update"
+  type: "new_request" | "status_update" | "system"
+  timestamp: Timestamp | any
   read: boolean
-  timestamp: any
-  branchCode: string
   requestId?: string
+  branchCode: string
   isForManager: boolean
 }
 
-export const PROBLEM_TYPES = [
-  "Air Conditioning",
-  "Electrical",
-  "Plumbing",
-  "Heating",
-  "Lighting",
-  "Security System",
-  "Internet/Network",
-  "Furniture",
-  "Cleaning",
-  "Other",
-] as const
+export type PriorityLevel = "low" | "medium" | "high" | "urgent"
 
 export const PRIORITY_OPTIONS = [
   {
@@ -59,14 +54,27 @@ export const PRIORITY_OPTIONS = [
     value: "high",
     label: "High",
     color: "bg-orange-100 text-orange-800 border-orange-200",
-    description: "Needs attention today",
+    description: "Needs prompt attention",
   },
   {
     value: "urgent",
     label: "Urgent",
     color: "bg-red-100 text-red-800 border-red-200",
-    description: "Immediate attention required",
+    description: "Immediate action required",
   },
-] as const
+]
 
-export type PriorityLevel = "low" | "medium" | "high" | "urgent"
+export const PROBLEM_TYPES = [
+  "Electrical",
+  "Plumbing",
+  "Air Conditioning",
+  "Heating",
+  "Lighting",
+  "Security System",
+  "Internet/Network",
+  "Furniture",
+  "Cleaning",
+  "Other",
+]
+
+export const STATUS_OPTIONS = ["قيد المراجعة", "تمت الموافقة", "قيد التنفيذ", "تم الإنجاز", "مرفوض"]

@@ -23,45 +23,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         try {
-          console.log("Auth state changed - user logged in:", firebaseUser.email)
-
-          // Get user data from Firestore
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid))
-
           if (userDoc.exists()) {
             const userData = userDoc.data()
-            const user: User = {
+            setUser({
               uid: firebaseUser.uid,
-              email: firebaseUser.email!,
+              email: firebaseUser.email || "",
               branchCode: userData.branchCode || "",
               isManager: userData.isManager || false,
-            }
-            console.log("User data loaded:", user)
-            setUser(user)
+            })
           } else {
-            console.log("User document not found, creating default user")
-            // Create default user document if it doesn't exist
-            const defaultUser: User = {
+            // Create user document if it doesn't exist
+            const newUser = {
               uid: firebaseUser.uid,
-              email: firebaseUser.email!,
+              email: firebaseUser.email || "",
               branchCode: "001", // Default branch
               isManager: false,
             }
-
-            await setDoc(doc(db, "users", firebaseUser.uid), {
-              email: defaultUser.email,
-              branchCode: defaultUser.branchCode,
-              isManager: defaultUser.isManager,
-            })
-
-            setUser(defaultUser)
+            await setDoc(doc(db, "users", firebaseUser.uid), newUser)
+            setUser(newUser)
           }
         } catch (error) {
-          console.error("Error loading user data:", error)
+          console.error("Error fetching user data:", error)
           setUser(null)
         }
       } else {
-        console.log("Auth state changed - user logged out")
         setUser(null)
       }
       setLoading(false)
@@ -72,9 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      console.log("Attempting login for:", email)
       await signInWithEmailAndPassword(auth, email, password)
-      console.log("Login successful")
     } catch (error) {
       console.error("Login error:", error)
       throw error
@@ -83,10 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      console.log("Logging out user")
       await signOut(auth)
       setUser(null)
-      console.log("Logout successful")
     } catch (error) {
       console.error("Logout error:", error)
       throw error

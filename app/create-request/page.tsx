@@ -33,6 +33,7 @@ import {
   Flag,
   AlertTriangle,
   Circle,
+  X,
 } from "lucide-react"
 import { PROBLEM_TYPES, PRIORITY_OPTIONS } from "@/lib/types"
 
@@ -64,15 +65,15 @@ export default function CreateRequestPage() {
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
       case "urgent":
-        return <Zap className="w-4 h-4" />
+        return <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
       case "high":
-        return <AlertTriangle className="w-4 h-4" />
+        return <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4" />
       case "medium":
-        return <Flag className="w-4 h-4" />
+        return <Flag className="w-3 h-3 sm:w-4 sm:h-4" />
       case "low":
-        return <Circle className="w-4 h-4" />
+        return <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
       default:
-        return <Circle className="w-4 h-4" />
+        return <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
     }
   }
 
@@ -137,7 +138,7 @@ export default function CreateRequestPage() {
 
       // Create notification for MANAGERS (isForManager: true)
       await createNotification({
-        title: `New ${selectedType} Request`,
+        title: `🔧 New ${selectedType} Request`,
         message: `A new ${selectedType} request has been submitted from Branch ${user.branchCode} and requires your attention.`,
         type: "new_request",
         read: false,
@@ -168,12 +169,12 @@ export default function CreateRequestPage() {
     return (
       <AppLayout>
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
-          <div className="text-center p-8">
-            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+          <div className="text-center p-4 sm:p-8">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h1>
-            <p className="text-gray-600">Please log in to create a maintenance request.</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Authentication Required</h1>
+            <p className="text-sm sm:text-base text-gray-600">Please log in to create a maintenance request.</p>
           </div>
         </div>
       </AppLayout>
@@ -185,31 +186,35 @@ export default function CreateRequestPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
         <div className="px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
           <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Wrench className="w-8 h-8 text-blue-600" />
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Wrench className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create Maintenance Request</h1>
-              <p className="text-gray-600">Submit a new maintenance request for your branch</p>
-              <div className="flex items-center justify-center gap-2 mt-3">
-                <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-3 py-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+                Create Maintenance Request
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600 mb-3">
+                Submit a new maintenance request for your branch
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs sm:px-3 sm:text-sm">
                   Branch {user.branchCode}
                 </Badge>
               </div>
             </div>
 
             <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-6">
-                <CardTitle className="text-xl font-semibold text-gray-900">Request Details</CardTitle>
+              <CardHeader className="pb-4 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900">Request Details</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   {/* Problem Type Selection */}
                   <div>
-                    <Label className="text-base font-medium text-gray-900 mb-4 block">
+                    <Label className="text-sm sm:text-base font-medium text-gray-900 mb-3 sm:mb-4 block">
                       What type of problem are you experiencing?
                     </Label>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {PROBLEM_TYPES.map((type) => {
                         const IconComponent = problemTypeIcons[type as keyof typeof problemTypeIcons]
                         return (
@@ -217,21 +222,21 @@ export default function CreateRequestPage() {
                             key={type}
                             type="button"
                             onClick={() => setSelectedType(type)}
-                            className={`p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
+                            className={`p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
                               selectedType === type
                                 ? "border-blue-500 bg-blue-50 text-blue-900"
                                 : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700"
                             }`}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
                               <div
-                                className={`p-2 rounded-xl ${selectedType === type ? "bg-blue-100" : "bg-gray-100"}`}
+                                className={`p-1.5 sm:p-2 rounded-xl ${selectedType === type ? "bg-blue-100" : "bg-gray-100"}`}
                               >
                                 <IconComponent
-                                  className={`w-5 h-5 ${selectedType === type ? "text-blue-600" : "text-gray-600"}`}
+                                  className={`w-4 h-4 sm:w-5 sm:h-5 ${selectedType === type ? "text-blue-600" : "text-gray-600"}`}
                                 />
                               </div>
-                              <span className="font-medium text-sm">{type}</span>
+                              <span className="font-medium text-xs sm:text-sm truncate">{type}</span>
                             </div>
                           </button>
                         )
@@ -241,24 +246,28 @@ export default function CreateRequestPage() {
 
                   {/* Priority Selection */}
                   <div>
-                    <Label className="text-base font-medium text-gray-900 mb-4 block">Priority Level</Label>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <Label className="text-sm sm:text-base font-medium text-gray-900 mb-3 sm:mb-4 block">
+                      Priority Level
+                    </Label>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                       {PRIORITY_OPTIONS.map((priority) => (
                         <button
                           key={priority.value}
                           type="button"
                           onClick={() => setSelectedPriority(priority.value as "low" | "medium" | "high" | "urgent")}
-                          className={`p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
+                          className={`p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
                             selectedPriority === priority.value
                               ? "border-blue-500 bg-blue-50"
                               : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                           }`}
                         >
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-1 sm:gap-2 mb-2">
                             {getPriorityIcon(priority.value)}
-                            <span className="font-medium text-sm">{priority.label}</span>
+                            <span className="font-medium text-xs sm:text-sm truncate">{priority.label}</span>
                           </div>
-                          <Badge className={`${getPriorityColor(priority.value)} border rounded-full text-xs`}>
+                          <Badge
+                            className={`${getPriorityColor(priority.value)} border rounded-full text-xs px-2 py-0.5`}
+                          >
                             {priority.label}
                           </Badge>
                         </button>
@@ -268,7 +277,7 @@ export default function CreateRequestPage() {
 
                   {/* Description */}
                   <div>
-                    <Label htmlFor="description" className="text-base font-medium text-gray-900 mb-2 block">
+                    <Label htmlFor="description" className="text-sm sm:text-base font-medium text-gray-900 mb-2 block">
                       Describe the problem in detail
                     </Label>
                     <Textarea
@@ -277,42 +286,51 @@ export default function CreateRequestPage() {
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={4}
-                      className="rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-base resize-none"
+                      className="rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-sm sm:text-base resize-none"
                       required
                     />
+                    <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+                      <span>Minimum 10 characters required</span>
+                      <span className={description.length >= 10 ? "text-green-600" : "text-gray-400"}>
+                        {description.length}/500
+                      </span>
+                    </div>
                   </div>
 
                   {/* Image Upload */}
                   <div>
-                    <Label className="text-base font-medium text-gray-900 mb-2 block">Add a photo (optional)</Label>
+                    <Label className="text-sm sm:text-base font-medium text-gray-900 mb-2 block">
+                      Add a photo (optional)
+                    </Label>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-center w-full">
-                        <label
-                          htmlFor="image-upload"
-                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
-                        >
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <Upload className="w-8 h-8 mb-2 text-gray-400" />
-                            <p className="mb-2 text-sm text-gray-500">
-                              <span className="font-semibold">Click to upload</span> or drag and drop
-                            </p>
-                            <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
-                          </div>
-                          <Input
-                            id="image-upload"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                      {imagePreview && (
+                      {!imagePreview ? (
+                        <div className="flex items-center justify-center w-full">
+                          <label
+                            htmlFor="image-upload"
+                            className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                          >
+                            <div className="flex flex-col items-center justify-center pt-3 pb-4 sm:pt-5 sm:pb-6">
+                              <Upload className="w-6 h-6 sm:w-8 sm:h-8 mb-2 text-gray-400" />
+                              <p className="mb-2 text-xs sm:text-sm text-gray-500">
+                                <span className="font-semibold">Click to upload</span> or drag and drop
+                              </p>
+                              <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB)</p>
+                            </div>
+                            <Input
+                              id="image-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageChange}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      ) : (
                         <div className="relative">
                           <img
                             src={imagePreview || "/placeholder.svg"}
                             alt="Preview"
-                            className="w-full h-48 object-cover rounded-2xl border-2 border-gray-200"
+                            className="w-full h-32 sm:h-48 object-cover rounded-2xl border-2 border-gray-200"
                           />
                           <Button
                             type="button"
@@ -322,9 +340,9 @@ export default function CreateRequestPage() {
                               setImage(null)
                               setImagePreview(null)
                             }}
-                            className="absolute top-2 right-2 rounded-xl"
+                            className="absolute top-2 right-2 rounded-xl h-8 w-8 p-0"
                           >
-                            Remove
+                            <X className="w-4 h-4" />
                           </Button>
                         </div>
                       )}
@@ -332,20 +350,20 @@ export default function CreateRequestPage() {
                   </div>
 
                   {/* Submit Button */}
-                  <div className="pt-4">
+                  <div className="pt-2 sm:pt-4">
                     <Button
                       type="submit"
-                      disabled={loading || !selectedType || !description.trim()}
-                      className="w-full h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-base font-medium"
+                      disabled={loading || !selectedType || !description.trim() || description.length < 10}
+                      className="w-full h-10 sm:h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 text-sm sm:text-base font-medium"
                     >
                       {loading ? (
                         <div className="flex items-center gap-2">
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                          <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent"></div>
                           Submitting Request...
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Wrench className="w-5 h-5" />
+                          <Wrench className="w-4 h-4 sm:w-5 sm:h-5" />
                           Submit Request
                         </div>
                       )}

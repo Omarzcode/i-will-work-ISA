@@ -11,24 +11,23 @@ import {
   updateDoc,
   doc,
   serverTimestamp,
-  writeBatch,
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { useAuth } from "./useAuth"
-import { useToast } from "./use-toast"
+import { useAuth } from "@/hooks/useAuth"
+import { useToast } from "@/hooks/use-toast"
 import type { Notification } from "@/lib/types"
 
 export function useNotifications() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [previousNotificationIds, setPreviousNotificationIds] = useState<Set<string>>(new Set())
 
-  // Fetch notifications based on user role
   useEffect(() => {
     if (!user) {
       setNotifications([])
+      setUnreadCount(0)
       setLoading(false)
       return
     }
@@ -39,7 +38,6 @@ export function useNotifications() {
     if (user.isManager) {
       // Managers see notifications meant for managers (new requests from all branches)
       q = query(collection(db, "notifications"), where("isForManager", "==", true), orderBy("timestamp", "desc"))
-      console.log("Manager query: notifications where isForManager == true")
     } else {
       // Branch users see notifications for their branch (status updates)
       q = query(
@@ -48,7 +46,6 @@ export function useNotifications() {
         where("isForManager", "==", false),
         orderBy("timestamp", "desc"),
       )
-      console.log("Branch user query: notifications for branch", user.branchCode, "where isForManager == false")
     }
 
     const unsubscribe = onSnapshot(
@@ -57,7 +54,7 @@ export function useNotifications() {
         console.log("Notifications snapshot received, docs count:", snapshot.docs.length)
 
         const notificationsList: Notification[] = []
-        const currentNotificationIds = new Set<string>()
+        const previousNotificationIds = new Set(notifications.map((n) => n.id))
 
         snapshot.docs.forEach((docSnapshot) => {
           const data = docSnapshot.data()
@@ -65,36 +62,28 @@ export function useNotifications() {
             id: docSnapshot.id,
             title: data.title || "",
             message: data.message || "",
-            type: data.type || "info",
-            read: data.read || false,
+            type: data.type || "system",
             timestamp: data.timestamp,
-            branchCode: data.branchCode || "",
+            read: data.read || false,
             requestId: data.requestId || "",
+            branchCode: data.branchCode || "",
             isForManager: data.isForManager || false,
           }
           notificationsList.push(notification)
-          currentNotificationIds.add(docSnapshot.id)
-        })
 
-        console.log("Processed notifications:", notificationsList.length)
-
-        // Show toast for new notifications (only after initial load)
-        if (previousNotificationIds.size > 0) {
-          const newNotifications = notificationsList.filter(
-            (notification) => !previousNotificationIds.has(notification.id) && !notification.read,
-          )
-
-          newNotifications.forEach((notification) => {
+          // Show toast for new notifications (not on initial load)
+          if (!previousNotificationIds.has(notification.id) && !notification.read && notifications.length > 0) {
             console.log("Showing toast for new notification:", notification.title)
             toast({
               title: notification.title,
               description: notification.message,
             })
-          })
-        }
+          }
+        })
 
+        console.log("Processed notifications:", notificationsList.length)
         setNotifications(notificationsList)
-        setPreviousNotificationIds(currentNotificationIds)
+        setUnreadCount(notificationsList.filter((n) => !n.read).length)
         setLoading(false)
       },
       (error) => {
@@ -104,62 +93,52 @@ export function useNotifications() {
     )
 
     return () => unsubscribe()
-  }, [user, toast, previousNotificationIds.size])
+  }, [user, toast, notifications.length])
 
-  // Create a new notification
   const createNotification = useCallback(async (notificationData: Omit<Notification, "id" | "timestamp">) => {
     try {
       console.log("Creating notification:", notificationData)
 
-      const docRef = await addDoc(collection(db, "notifications"), {
+      await addDoc(collection(db, "notifications"), {
         ...notificationData,
         timestamp: serverTimestamp(),
       })
 
-      console.log("Notification created with ID:", docRef.id)
-      return docRef.id
+      console.log("Notification created successfully")
     } catch (error) {
       console.error("Error creating notification:", error)
       throw error
     }
   }, [])
 
-  // Mark a notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
       await updateDoc(doc(db, "notifications", notificationId), {
         read: true,
       })
-      console.log("Marked notification as read:", notificationId)
+      console.log("Notification marked as read:", notificationId)
     } catch (error) {
       console.error("Error marking notification as read:", error)
     }
   }, [])
 
-  // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
-      const batch = writeBatch(db)
       const unreadNotifications = notifications.filter((n) => !n.read)
-
-      unreadNotifications.forEach((notification) => {
-        const notificationRef = doc(db, "notifications", notification.id)
-        batch.update(notificationRef, { read: true })
-      })
-
-      await batch.commit()
-      console.log("Marked all notifications as read")
+      const promises = unreadNotifications.map((notification) =>
+        updateDoc(doc(db, "notifications", notification.id!), { read: true }),
+      )
+      await Promise.all(promises)
+      console.log("All notifications marked as read")
     } catch (error) {
       console.error("Error marking all notifications as read:", error)
     }
   }, [notifications])
 
-  const unreadCount = notifications.filter((n) => !n.read).length
-
   return {
     notifications,
-    loading,
     unreadCount,
+    loading,
     createNotification,
     markAsRead,
     markAllAsRead,
