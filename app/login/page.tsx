@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const { user, login } = useAuth()
   const router = useRouter()
-  const x=0
+
   useEffect(() => {
     if (user) {
       router.replace("/dashboard")
