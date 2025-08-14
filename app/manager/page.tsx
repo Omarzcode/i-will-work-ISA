@@ -257,8 +257,8 @@ export default function ManagerPage() {
   if (!user?.isManager) {
     return (
       <AppLayout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
-          <div className="text-center p-4 sm:p-8">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100 p-4">
+          <div className="text-center">
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
             </div>
@@ -273,8 +273,8 @@ export default function ManagerPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-          <div className="text-center p-4 sm:p-8">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+          <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
             <p className="text-sm sm:text-base text-gray-600">Loading requests...</p>
           </div>
@@ -286,9 +286,9 @@ export default function ManagerPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
-        <div className="px-3 sm:px-6 lg:px-8 py-4 lg:py-8">
-          {/* Header */}
-          <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 mb-6 sm:mb-8">
+        <div className="px-4 sm:px-6 lg:px-8 py-4 lg:py-8">
+          {/* Header - Mobile Optimized */}
+          <div className="space-y-4 mb-6 sm:mb-8">
             <div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Manager Dashboard</h1>
               <p className="text-sm sm:text-base text-gray-600 mb-3">Manage maintenance requests from all branches</p>
@@ -301,11 +301,11 @@ export default function ManagerPage() {
                 </Badge>
               </div>
             </div>
-            <div className="w-full sm:w-auto">
+            <div className="w-full">
               <Button
                 onClick={cleanupOldRequests}
                 variant="outline"
-                className="w-full sm:w-auto rounded-2xl border-2 hover:bg-red-50 hover:border-red-200 bg-transparent text-sm"
+                className="w-full sm:w-auto rounded-2xl border-2 hover:bg-red-50 hover:border-red-200 bg-transparent text-sm h-10"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clean Old Requests
@@ -313,10 +313,10 @@ export default function ManagerPage() {
             </div>
           </div>
 
-          {/* Filters */}
+          {/* Filters - Mobile Optimized */}
           <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm mb-6">
             <CardContent className="p-4 sm:p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Status</label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -371,8 +371,8 @@ export default function ManagerPage() {
             </CardContent>
           </Card>
 
-          {/* Requests Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+          {/* Requests Grid - Mobile Optimized */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {filteredRequests.map((request) => {
               const nextStatus = getNextStatus(request.status)
               const rejectOption = getRejectOption(request.status)
@@ -380,19 +380,19 @@ export default function ManagerPage() {
               return (
                 <Card key={request.id} className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
                   <CardHeader className="pb-3 sm:pb-4">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 mb-2 truncate">
+                        <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-1">
                           {request.problemType}
                         </CardTitle>
-                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-3">
-                          <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs flex items-center gap-1 flex-shrink-0">
                             <MapPin className="w-3 h-3" />
                             <span className="hidden sm:inline">Branch </span>
                             {request.branchCode}
                           </Badge>
                           <Badge
-                            className={`${getPriorityColor(request.priority || "medium")} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
+                            className={`${getPriorityColor(request.priority || "medium")} border rounded-full px-2 py-1 text-xs flex items-center gap-1 flex-shrink-0`}
                           >
                             {getPriorityIcon(request.priority || "medium")}
                             <span className="truncate">
@@ -402,20 +402,20 @@ export default function ManagerPage() {
                         </div>
                       </div>
                       {/* Time ago badge - positioned in top right */}
-                      <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs ml-2 flex-shrink-0">
+                      <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs flex-shrink-0 whitespace-nowrap">
                         <Clock className="w-3 h-3 mr-1" />
                         {getTimeAgo(request.timestamp)}
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed">
+                  <CardContent className="pt-0 space-y-4">
+                    <p className="text-gray-600 text-xs sm:text-sm line-clamp-2 leading-relaxed">
                       {request.description}
                     </p>
 
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between">
                       <Badge
-                        className={`${getStatusColor(request.status)} border rounded-full px-2 py-1 text-xs flex items-center gap-1`}
+                        className={`${getStatusColor(request.status)} border rounded-full px-2 py-1 text-xs flex items-center gap-1 flex-shrink-0`}
                       >
                         {getStatusIcon(request.status)}
                         <span className="truncate">
@@ -438,13 +438,13 @@ export default function ManagerPage() {
                       </div>
                     </div>
 
-                    {/* Quick Action Buttons */}
-                    <div className="flex flex-col gap-2 mb-4">
+                    {/* Quick Action Buttons - Mobile Optimized */}
+                    <div className="space-y-2">
                       {nextStatus && (
                         <Button
                           onClick={() => updateRequestStatus(request.id, nextStatus.status, request)}
                           disabled={updatingRequest === request.id}
-                          className={`${nextStatus.color} text-white rounded-2xl text-xs sm:text-sm h-8 sm:h-9 flex items-center justify-center gap-2`}
+                          className={`${nextStatus.color} text-white rounded-2xl text-xs sm:text-sm h-10 w-full flex items-center justify-center gap-2`}
                         >
                           {updatingRequest === request.id ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
@@ -463,7 +463,7 @@ export default function ManagerPage() {
                           onClick={() => updateRequestStatus(request.id, rejectOption.status, request)}
                           disabled={updatingRequest === request.id}
                           variant="outline"
-                          className={`${rejectOption.color} text-white border-red-600 rounded-2xl text-xs sm:text-sm h-8 sm:h-9 flex items-center justify-center gap-2`}
+                          className={`${rejectOption.color} text-white border-red-600 rounded-2xl text-xs sm:text-sm h-10 w-full flex items-center justify-center gap-2`}
                         >
                           {updatingRequest === request.id ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent" />
@@ -483,7 +483,7 @@ export default function ManagerPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 rounded-2xl border-2 bg-transparent text-xs sm:text-sm h-8 sm:h-9"
+                            className="flex-1 rounded-2xl border-2 bg-transparent text-xs sm:text-sm h-10"
                             onClick={() => setSelectedRequest(request)}
                           >
                             <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />

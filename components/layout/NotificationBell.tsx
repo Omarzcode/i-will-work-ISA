@@ -151,19 +151,34 @@ export function NotificationBell() {
       <PopoverContent className="w-80 sm:w-96 p-0 rounded-3xl" align="end">
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold text-gray-900">
-                {user.isManager ? "Manager Notifications" : `Branch ${user.branchCode} Notifications`}
-              </CardTitle>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                  {user.isManager ? "Manager Notifications" : `Branch ${user.branchCode} Notifications`}
+                </CardTitle>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                  {user.isManager ? "New requests from all branches" : "Status updates for your requests"}
+                </p>
+              </div>
+            </div>
+
+            {/* Action buttons - Mobile optimized */}
+            <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between sm:gap-2 mt-3">
+              <div className="text-xs text-gray-500">
+                {notifications.length === 0
+                  ? "No notifications"
+                  : `${notifications.length} total, ${unreadCount} unread`}
+              </div>
+
+              <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:gap-2">
                 {unreadCount > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={markAllAsRead}
-                    className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl"
+                    className="w-full sm:w-auto text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl h-8"
                   >
-                    <CheckCheck className="w-4 h-4 mr-1" />
+                    <CheckCheck className="w-3 h-3 mr-1" />
                     Mark all read
                   </Button>
                 )}
@@ -173,26 +188,26 @@ export function NotificationBell() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                        className="w-full sm:w-auto text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl h-8"
                       >
-                        <Trash2 className="w-4 h-4 mr-1" />
+                        <Trash2 className="w-3 h-3 mr-1" />
                         Clear All
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-3xl">
+                    <AlertDialogContent className="mx-4 rounded-3xl max-w-sm sm:max-w-lg">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Clear All Notifications?</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="text-base sm:text-lg">Clear All Notifications?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm">
                           This will permanently delete all your notifications from the database. This action cannot be
                           undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                      <AlertDialogFooter className="flex-col space-y-2 sm:space-y-0 sm:flex-row sm:space-x-2">
+                        <AlertDialogCancel className="w-full sm:w-auto rounded-2xl">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={clearAllNotifications}
                           disabled={clearing}
-                          className="rounded-2xl bg-red-600 hover:bg-red-700"
+                          className="w-full sm:w-auto rounded-2xl bg-red-600 hover:bg-red-700"
                         >
                           {clearing ? "Clearing..." : "Clear All"}
                         </AlertDialogAction>
@@ -202,9 +217,8 @@ export function NotificationBell() {
                 )}
               </div>
             </div>
-            {user.isManager && <p className="text-sm text-gray-600">New requests from all branches</p>}
-            {!user.isManager && <p className="text-sm text-gray-600">Status updates for your requests</p>}
           </CardHeader>
+
           <CardContent className="p-0">
             {loading ? (
               <div className="flex items-center justify-center py-8">
@@ -241,7 +255,7 @@ export function NotificationBell() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <h4
-                                className={`text-sm font-medium truncate ${
+                                className={`text-sm font-medium line-clamp-1 ${
                                   notification.read ? "text-gray-700" : "text-gray-900"
                                 }`}
                               >
@@ -270,7 +284,7 @@ export function NotificationBell() {
                               e.stopPropagation()
                               deleteNotification(notification.id!)
                             }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600 rounded-full"
+                            className="opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600 rounded-full flex-shrink-0"
                           >
                             <X className="w-3 h-3" />
                           </Button>
@@ -285,7 +299,7 @@ export function NotificationBell() {
                       variant="ghost"
                       size="sm"
                       onClick={handleViewAll}
-                      className="w-full text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-2xl"
+                      className="w-full text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-2xl h-10"
                     >
                       View all notifications ({notifications.length})
                     </Button>
