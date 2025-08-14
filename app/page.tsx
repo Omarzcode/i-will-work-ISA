@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth"
 export default function HomePage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-
+  const x=0
   useEffect(() => {
     if (!loading) {
       if (user) {
