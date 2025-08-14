@@ -60,3 +60,7 @@ export const PRIORITY_OPTIONS = [
   { value: "high", label: "High", color: "bg-orange-100 text-orange-800 border-orange-200" },
   { value: "urgent", label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" },
 ] as const
+
+export type PriorityLevel = "low" | "medium" | "high" | "urgent"
+export type StatusLevel = (typeof STATUS_OPTIONS)[number]
+export type ProblemType = (typeof PROBLEM_TYPES)[number]

@@ -25,6 +25,9 @@ import {
   Building,
   Filter,
   AlertTriangle,
+  Zap,
+  Flag,
+  Circle,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ImageViewer } from "@/components/ui/image-viewer"
@@ -51,9 +54,9 @@ export default function ManagerPage() {
       const requestsQuery = query(collection(db, "requests"), orderBy("timestamp", "desc"))
 
       const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
-        const requestsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+        const requestsData = snapshot.docs.map((docSnapshot) => ({
+          id: docSnapshot.id,
+          ...docSnapshot.data(),
         })) as MaintenanceRequest[]
 
         setRequests(requestsData)
@@ -163,15 +166,15 @@ export default function ManagerPage() {
   const getPriorityIcon = (priority?: string) => {
     switch (priority) {
       case "urgent":
-        return <AlertTriangle className="w-4 h-4" />
+        return <Zap className="w-4 h-4" />
       case "high":
-        return <AlertCircle className="w-4 h-4" />
+        return <AlertTriangle className="w-4 h-4" />
       case "medium":
-        return <Clock className="w-4 h-4" />
+        return <Flag className="w-4 h-4" />
       case "low":
-        return <CheckCircle className="w-4 h-4" />
+        return <Circle className="w-4 h-4" />
       default:
-        return <Clock className="w-4 h-4" />
+        return <Circle className="w-4 h-4" />
     }
   }
 
