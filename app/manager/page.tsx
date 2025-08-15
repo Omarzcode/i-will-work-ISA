@@ -767,7 +767,7 @@ export default function ManagerPage() {
         {/* Simple Image Viewer Modal */}
         {imageViewerOpen && selectedImage && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] p-4"
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[99999] p-4"
             onClick={() => {
               setImageViewerOpen(false)
               setSelectedImage(null)
@@ -775,7 +775,9 @@ export default function ManagerPage() {
           >
             <div className="relative max-w-4xl max-h-full">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
                   setImageViewerOpen(false)
                   setSelectedImage(null)
                 }}
