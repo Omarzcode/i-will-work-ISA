@@ -169,19 +169,6 @@ export default function ManagerPage() {
     }
   }
 
-  // Open image viewer
-  const openImageViewer = (src: string, alt: string) => {
-    console.log("Opening image viewer with:", src, alt) // Debug log
-    setSelectedImage({ src, alt })
-    setImageViewerOpen(true)
-  }
-
-  // Close image viewer
-  const closeImageViewer = () => {
-    setImageViewerOpen(false)
-    setSelectedImage(null)
-  }
-
   useEffect(() => {
     if (!user?.isManager) return
 
@@ -226,18 +213,6 @@ export default function ManagerPage() {
 
     return () => unsubscribe()
   }, [user])
-
-  useEffect(() => {
-    if (imageViewerOpen) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = "unset"
-    }
-
-    return () => {
-      document.body.style.overflow = "unset"
-    }
-  }, [imageViewerOpen])
 
   const updateRequestStatus = async (requestId: string, newStatus: string, request: MaintenanceRequest) => {
     setUpdatingRequest(requestId)
@@ -524,13 +499,18 @@ export default function ManagerPage() {
                         </Badge>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           {request.imageUrl && (
-                            <button
-                              onClick={() => openImageViewer(request.imageUrl!, `${request.problemType} image`)}
+                            <Button
+                              onClick={() => {
+                                setSelectedImage({ src: request.imageUrl!, alt: `${request.problemType} image` })
+                                setImageViewerOpen(true)
+                              }}
+                              variant="outline"
+                              size="sm"
                               className="flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer"
                             >
                               <ImageIcon className="w-3 h-3" />
                               <span className="hidden sm:inline">Photo</span>
-                            </button>
+                            </Button>
                           )}
                           {request.rating && request.rating > 0 && (
                             <div className="flex items-center gap-1">
@@ -697,12 +677,6 @@ export default function ManagerPage() {
                                       src={selectedRequest.imageUrl || "/placeholder.svg"}
                                       alt="Request attachment"
                                       className="w-full h-64 object-cover rounded-2xl border cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() =>
-                                        openImageViewer(
-                                          selectedRequest.imageUrl!,
-                                          `${selectedRequest.problemType} image`,
-                                        )
-                                      }
                                     />
                                   </div>
                                 )}
@@ -790,33 +764,26 @@ export default function ManagerPage() {
         </div>
       </AppLayout>
 
-      {/* Simple Image Viewer Modal - Completely Independent */}
-      {imageViewerOpen && selectedImage && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4"
-          style={{ zIndex: 999999 }}
-          onClick={closeImageViewer}
-        >
-          <div className="relative max-w-4xl max-h-full">
+      {/* Image Viewer Dialog */}
+      <Dialog open={imageViewerOpen} onOpenChange={setImageViewerOpen}>
+        <DialogContent className="max-w-4xl w-full h-[90vh] p-0 bg-black border-0">
+          <div className="relative w-full h-full flex items-center justify-center">
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                closeImageViewer()
-              }}
-              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors bg-black bg-opacity-50 rounded-full p-2 z-10"
-              style={{ zIndex: 1000000 }}
+              onClick={() => setImageViewerOpen(false)}
+              className="absolute top-4 right-4 z-50 text-white hover:text-gray-300 transition-colors bg-black bg-opacity-50 rounded-full p-2"
             >
               <X className="w-6 h-6" />
             </button>
-            <img
-              src={selectedImage.src || "/placeholder.svg"}
-              alt={selectedImage.alt}
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {selectedImage && (
+              <img
+                src={selectedImage.src || "/placeholder.svg"}
+                alt={selectedImage.alt}
+                className="max-w-full max-h-full object-contain"
+              />
+            )}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
