@@ -34,10 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
           } else {
             // Create user document if it doesn't exist
+            // Extract branch code from email (everything before @)
+            const emailPrefix = firebaseUser.email?.split("@")[0] || "unknown"
+
             const newUser = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || "",
-              branchCode: "001", // Default branch
+              branchCode: emailPrefix, // Use email prefix as branch code
               isManager: false,
             }
             await setDoc(doc(db, "users", firebaseUser.uid), newUser)
