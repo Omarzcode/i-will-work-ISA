@@ -506,11 +506,7 @@ export default function ManagerPage() {
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         {request.imageUrl && (
                           <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              openImageViewer(request.imageUrl!, `${request.problemType} image`)
-                            }}
+                            onClick={() => openImageViewer(request.imageUrl!, `${request.problemType} image`)}
                             className="flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer"
                           >
                             <ImageIcon className="w-3 h-3" />
@@ -678,24 +674,14 @@ export default function ManagerPage() {
                                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                                     Attached Image
                                   </label>
-                                  <div className="relative">
-                                    <img
-                                      src={selectedRequest.imageUrl || "/placeholder.svg"}
-                                      alt="Request attachment"
-                                      className="w-full h-64 object-cover rounded-2xl border cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        openImageViewer(
-                                          selectedRequest.imageUrl!,
-                                          `${selectedRequest.problemType} image`,
-                                        )
-                                      }}
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
-                                      <Eye className="w-8 h-8 text-white" />
-                                    </div>
-                                  </div>
+                                  <img
+                                    src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                    alt="Request attachment"
+                                    className="w-full h-64 object-cover rounded-2xl border cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() =>
+                                      openImageViewer(selectedRequest.imageUrl!, `${selectedRequest.problemType} image`)
+                                    }
+                                  />
                                 </div>
                               )}
 
