@@ -768,12 +768,7 @@ export default function ManagerPage() {
       <Dialog open={imageViewerOpen} onOpenChange={setImageViewerOpen}>
         <DialogContent className="max-w-4xl w-full h-[90vh] p-0 bg-black border-0">
           <div className="relative w-full h-full flex items-center justify-center">
-            <button
-              onClick={() => setImageViewerOpen(false)}
-              className="absolute top-4 right-4 z-50 text-white hover:text-gray-300 transition-colors bg-black bg-opacity-50 rounded-full p-2"
-            >
-              <X className="w-6 h-6" />
-            </button>
+          
             {selectedImage && (
               <img
                 src={selectedImage.src || "/placeholder.svg"}
