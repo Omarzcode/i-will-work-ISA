@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createPortal } from "react-dom"
 import { collection, query, orderBy, onSnapshot, updateDoc, doc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
@@ -110,62 +109,6 @@ const getRejectOption = (currentStatus: string) => {
     return { status: "مرفوض", label: "Reject", icon: XCircle, color: "bg-red-600 hover:bg-red-700" }
   }
   return null
-}
-
-// Image Viewer Component
-const ImageViewer = ({
-  isOpen,
-  onClose,
-  src,
-  alt,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  src: string
-  alt: string
-}) => {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = "unset"
-    }
-
-    return () => {
-      document.body.style.overflow = "unset"
-    }
-  }, [isOpen])
-
-  if (!mounted || !isOpen) return null
-
-  return createPortal(
-    <div
-      className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[99999] p-4"
-      onClick={onClose}
-    >
-      <div className="relative max-w-4xl max-h-full">
-        <button
-          onClick={onClose}
-          className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors bg-black bg-opacity-50 rounded-full p-2"
-        >
-          <X className="w-6 h-6" />
-        </button>
-        <img
-          src={src || "/placeholder.svg"}
-          alt={alt}
-          className="max-w-full max-h-[90vh] object-contain rounded-lg"
-          onClick={(e) => e.stopPropagation()}
-        />
-      </div>
-    </div>,
-    document.body,
-  )
 }
 
 export default function ManagerPage() {
@@ -283,6 +226,18 @@ export default function ManagerPage() {
 
     return () => unsubscribe()
   }, [user])
+
+  useEffect(() => {
+    if (imageViewerOpen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = "unset"
+    }
+
+    return () => {
+      document.body.style.overflow = "unset"
+    }
+  }, [imageViewerOpen])
 
   const updateRequestStatus = async (requestId: string, newStatus: string, request: MaintenanceRequest) => {
     setUpdatingRequest(requestId)
@@ -835,14 +790,32 @@ export default function ManagerPage() {
         </div>
       </AppLayout>
 
-      {/* Image Viewer - Rendered outside AppLayout using Portal */}
-      {selectedImage && (
-        <ImageViewer
-          isOpen={imageViewerOpen}
-          onClose={closeImageViewer}
-          src={selectedImage.src || "/placeholder.svg"}
-          alt={selectedImage.alt}
-        />
+      {/* Simple Image Viewer Modal - Completely Independent */}
+      {imageViewerOpen && selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4"
+          style={{ zIndex: 999999 }}
+          onClick={closeImageViewer}
+        >
+          <div className="relative max-w-4xl max-h-full">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                closeImageViewer()
+              }}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors bg-black bg-opacity-50 rounded-full p-2 z-10"
+              style={{ zIndex: 1000000 }}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={selectedImage.src || "/placeholder.svg"}
+              alt={selectedImage.alt}
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
       )}
     </>
   )
