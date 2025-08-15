@@ -38,6 +38,8 @@ import {
   AlertCircle,
   XCircle,
   Plus,
+  Copy,
+  Check,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
@@ -56,6 +58,7 @@ export default function MyRequestsPage() {
   const [rating, setRating] = useState(0)
   const [feedback, setFeedback] = useState("")
   const [submittingRating, setSubmittingRating] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -85,6 +88,7 @@ export default function MyRequestsPage() {
     if (searchQuery.trim() !== "") {
       filtered = filtered.filter(
         (request) =>
+          request.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           request.problemType.toLowerCase().includes(searchQuery.toLowerCase()) ||
           request.description.toLowerCase().includes(searchQuery.toLowerCase()),
       )
@@ -96,6 +100,24 @@ export default function MyRequestsPage() {
 
     setFilteredRequests(filtered)
   }, [searchQuery, statusFilter, requests])
+
+  const copyToClipboard = async (text: string, requestId: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(requestId)
+      toast({
+        title: "Copied!",
+        description: "Request ID copied to clipboard",
+      })
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy to clipboard",
+        variant: "destructive",
+      })
+    }
+  }
 
   const handleCancelRequest = async (requestId: string) => {
     if (!user) {
@@ -109,7 +131,6 @@ export default function MyRequestsPage() {
 
     setCancellingRequest(requestId)
     try {
-      // First, try to delete the document
       await deleteDoc(doc(db, "requests", requestId))
 
       toast({
@@ -119,7 +140,6 @@ export default function MyRequestsPage() {
     } catch (error: any) {
       console.error("Error cancelling request:", error)
 
-      // Provide more specific error messages
       let errorMessage = "Failed to cancel request. Please try again."
 
       if (error.code === "permission-denied") {
@@ -364,7 +384,7 @@ export default function MyRequestsPage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
               <Input
                 type="text"
-                placeholder="Search requests..."
+                placeholder="Search by ID, problem type, or description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 sm:pl-10 lg:pl-12 h-9 sm:h-10 lg:h-12 rounded-2xl border-2 border-gray-200 focus:border-blue-500 text-xs sm:text-sm bg-white/80 backdrop-blur-sm"
@@ -435,9 +455,25 @@ export default function MyRequestsPage() {
                       {/* Header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-2 truncate">
-                            {request.problemType}
-                          </h3>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 truncate">
+                              {request.problemType}
+                            </h3>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(request.id!, request.id!)}
+                              className="h-6 px-2 text-xs rounded-lg"
+                              title="Copy Request ID"
+                            >
+                              {copiedId === request.id ? (
+                                <Check className="w-3 h-3 text-green-600" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                              <span className="ml-1 font-mono text-xs">#{request.id?.slice(-8)}</span>
+                            </Button>
+                          </div>
                           <div className="flex flex-wrap items-center gap-2 mb-3">
                             <Badge
                               className={`${getStatusColor(request.status)} border rounded-full px-2 sm:px-3 py-1 flex items-center gap-1 text-xs`}
@@ -508,6 +544,26 @@ export default function MyRequestsPage() {
                             {selectedRequest && (
                               <div className="space-y-4 sm:space-y-6">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="text-xs font-medium text-gray-700">Request ID</label>
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+                                        {selectedRequest.id}
+                                      </code>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(selectedRequest.id!, selectedRequest.id!)}
+                                        className="h-6 px-2"
+                                      >
+                                        {copiedId === selectedRequest.id ? (
+                                          <Check className="w-3 h-3 text-green-600" />
+                                        ) : (
+                                          <Copy className="w-3 h-3" />
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </div>
                                   <div>
                                     <label className="text-xs font-medium text-gray-700">Problem Type</label>
                                     <p className="text-xs sm:text-sm text-gray-900 mt-1">

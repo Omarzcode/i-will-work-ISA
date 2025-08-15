@@ -1,625 +1,708 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, orderBy, onSnapshot, updateDoc, doc } from "firebase/firestore"
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
-import { useNotifications } from "@/hooks/useNotifications"
-import { useToast } from "@/hooks/use-toast"
+import type { MaintenanceRequest } from "@/lib/types"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ImageViewer } from "@/components/ui/image-viewer"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
-  Eye,
+  Search,
+  Calendar,
+  ImageIcon,
+  FileText,
+  Filter,
   Clock,
   CheckCircle,
+  AlertCircle,
   XCircle,
-  AlertTriangle,
-  Wrench,
-  Calendar,
-  MapPin,
-  FileText,
-  Zap,
-  Flag,
-  Circle,
-  Trash2,
-  ImageIcon,
-  ArrowRight,
-  Play,
+  Copy,
   Check,
+  Eye,
+  Edit,
 } from "lucide-react"
-import type { MaintenanceRequest } from "@/lib/types"
-import { PRIORITY_OPTIONS } from "@/lib/types"
-
-const statusOptions = [
-  { value: "قيد المراجعة", label: "Under Review", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
-  { value: "معتمد", label: "Approved", icon: CheckCircle, color: "bg-green-100 text-green-800" },
-  { value: "قيد التنفيذ", label: "In Progress", icon: Wrench, color: "bg-blue-100 text-blue-800" },
-  { value: "مكتمل", label: "Completed", icon: CheckCircle, color: "bg-green-100 text-green-800" },
-  { value: "مرفوض", label: "Rejected", icon: XCircle, color: "bg-red-100 text-red-800" },
-]
-
-const getPriorityIcon = (priority: string) => {
-  switch (priority) {
-    case "urgent":
-      return <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-    case "high":
-      return <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4" />
-    case "medium":
-      return <Flag className="w-3 h-3 sm:w-4 sm:h-4" />
-    case "low":
-      return <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
-    default:
-      return <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
-  }
-}
-
-const getPriorityColor = (priority: string) => {
-  const priorityOption = PRIORITY_OPTIONS.find((p) => p.value === priority)
-  return priorityOption?.color || "bg-gray-100 text-gray-800 border-gray-200"
-}
-
-// Time ago function
-const getTimeAgo = (timestamp: any) => {
-  if (!timestamp) return "Unknown"
-
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-  const now = new Date()
-  const diffInMs = now.getTime() - date.getTime()
-  const diffInMinutes = Math.floor(diffInMs / (1000 * 60))
-  const diffInHours = Math.floor(diffInMinutes / 60)
-  const diffInDays = Math.floor(diffInHours / 24)
-  const diffInWeeks = Math.floor(diffInDays / 7)
-  const diffInMonths = Math.floor(diffInDays / 30)
-
-  if (diffInMinutes < 1) return "Just now"
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-  if (diffInHours < 24) return `${diffInHours}h ago`
-  if (diffInDays < 7) return `${diffInDays}d ago`
-  if (diffInWeeks < 4) return `${diffInWeeks}w ago`
-  if (diffInMonths < 12) return `${diffInMonths}mo ago`
-
-  return date.toLocaleDateString()
-}
-
-// Get next status in the workflow
-const getNextStatus = (currentStatus: string) => {
-  switch (currentStatus) {
-    case "قيد المراجعة":
-      return { status: "معتمد", label: "Approve", icon: CheckCircle, color: "bg-green-600 hover:bg-green-700" }
-    case "معتمد":
-      return { status: "قيد التنفيذ", label: "Start Work", icon: Play, color: "bg-blue-600 hover:bg-blue-700" }
-    case "قيد التنفيذ":
-      return { status: "مكتمل", label: "Complete", icon: Check, color: "bg-green-600 hover:bg-green-700" }
-    default:
-      return null
-  }
-}
-
-// Get reject option for pending requests
-const getRejectOption = (currentStatus: string) => {
-  if (currentStatus === "قيد المراجعة") {
-    return { status: "مرفوض", label: "Reject", icon: XCircle, color: "bg-red-600 hover:bg-red-700" }
-  }
-  return null
-}
+import { useToast } from "@/hooks/use-toast"
+import { ImageViewer } from "@/components/ui/image-viewer"
 
 export default function ManagerPage() {
   const { user } = useAuth()
-  const { createNotification } = useNotifications()
   const { toast } = useToast()
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
-  const [loading, setLoading] = useState(true)
+  const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [priorityFilter, setPriorityFilter] = useState("all")
+  const [branchFilter, setBranchFilter] = useState("all")
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [priorityFilter, setPriorityFilter] = useState<string>("all")
-  const [branchFilter, setBranchFilter] = useState<string>("all")
-  const [updatingRequest, setUpdatingRequest] = useState<string | null>(null)
-
-  // Cleanup old requests
-  const cleanupOldRequests = async () => {
-    try {
-      const response = await fetch("/api/cleanup", {
-        method: "POST",
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        toast({
-          title: "✅ Cleanup Complete",
-          description: `Cleaned up ${result.deletedCount} old requests`,
-        })
-      } else {
-        throw new Error("Cleanup failed")
-      }
-    } catch (error) {
-      console.error("Error during cleanup:", error)
-      toast({
-        title: "❌ Cleanup Failed",
-        description: "Failed to clean up old requests",
-        variant: "destructive",
-      })
-    }
-  }
+  const [isLoading, setIsLoading] = useState(true)
+  const [managingRequest, setManagingRequest] = useState<string | null>(null)
+  const [newStatus, setNewStatus] = useState("")
+  const [completionMessage, setCompletionMessage] = useState("")
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user?.isManager) return
 
-    console.log("Manager page: Setting up requests listener")
+    const requestsQuery = query(collection(db, "requests"), orderBy("timestamp", "desc"))
 
-    const q = query(collection(db, "requests"), orderBy("timestamp", "desc"))
+    const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
+      const requestsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as MaintenanceRequest[]
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        console.log("Requests snapshot received, docs count:", snapshot.docs.length)
-
-        const requestsList: MaintenanceRequest[] = []
-        snapshot.docs.forEach((docSnapshot) => {
-          const data = docSnapshot.data()
-          const request: MaintenanceRequest = {
-            id: docSnapshot.id,
-            branchCode: data.branchCode || "",
-            problemType: data.problemType || "",
-            description: data.description || "",
-            imageUrl: data.imageUrl || "",
-            timestamp: data.timestamp,
-            status: data.status || "قيد المراجعة",
-            userId: data.userId || "",
-            priority: data.priority || "medium",
-          }
-          requestsList.push(request)
-        })
-
-        console.log("Processed requests:", requestsList.length)
-        setRequests(requestsList)
-        setLoading(false)
-      },
-      (error) => {
-        console.error("Error fetching requests:", error)
-        setLoading(false)
-      },
-    )
+      setRequests(requestsData)
+      setIsLoading(false)
+    })
 
     return () => unsubscribe()
   }, [user])
 
-  const updateRequestStatus = async (requestId: string, newStatus: string, request: MaintenanceRequest) => {
-    setUpdatingRequest(requestId)
+  useEffect(() => {
+    let filtered = requests
+
+    // Search filter
+    if (searchQuery.trim() !== "") {
+      filtered = filtered.filter(
+        (request) =>
+          request.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.problemType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.branchCode.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((request) => request.status === statusFilter)
+    }
+
+    // Priority filter
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter((request) => request.priority === priorityFilter)
+    }
+
+    // Branch filter
+    if (branchFilter !== "all") {
+      filtered = filtered.filter((request) => request.branchCode === branchFilter)
+    }
+
+    setFilteredRequests(filtered)
+  }, [searchQuery, statusFilter, priorityFilter, branchFilter, requests])
+
+  const handleStatusUpdate = async () => {
+    if (!managingRequest || !newStatus) return
+
+    setUpdatingStatus(true)
     try {
-      console.log("Updating request status:", requestId, "to:", newStatus)
+      const updateData: any = { status: newStatus }
+      if (newStatus === "تم الإنجاز" && completionMessage.trim()) {
+        updateData.completionMessage = completionMessage.trim()
+      }
 
-      await updateDoc(doc(db, "requests", requestId), {
-        status: newStatus,
-      })
+      await updateDoc(doc(db, "requests", managingRequest), updateData)
 
-      // Create notification for the branch user (isForManager: false)
-      const statusOption = statusOptions.find((s) => s.value === newStatus)
-      const statusLabel = statusOption?.label || newStatus
-
-      await createNotification({
-        title: `📋 Request ${statusLabel}`,
-        message: `Your ${request.problemType} request has been ${statusLabel.toLowerCase()}. Check your requests page for details.`,
-        type: "status_update",
-        read: false,
-        requestId: requestId,
-        branchCode: request.branchCode,
-        isForManager: false, // This goes to branch users
-      })
-
-      console.log("Status updated and notification created")
+      // Create notification
+      const request = requests.find((r) => r.id === managingRequest)
+      if (request) {
+        await addDoc(collection(db, "notifications"), {
+          title: "Request Status Updated",
+          message: `Your ${request.problemType} request has been updated to: ${newStatus}`,
+          type: "status_update",
+          timestamp: Timestamp.now(),
+          read: false,
+          requestId: managingRequest,
+          branchCode: request.branchCode,
+          isForManager: false,
+        })
+      }
 
       toast({
-        title: "✅ Status Updated",
-        description: `Request status changed to ${statusLabel}`,
+        title: "Status Updated ✅",
+        description: "Request status has been updated successfully.",
       })
-    } catch (error) {
-      console.error("Error updating request status:", error)
+
+      setManagingRequest(null)
+      setNewStatus("")
+      setCompletionMessage("")
+    } catch (error: any) {
+      console.error("Error updating status:", error)
       toast({
-        title: "❌ Error",
-        description: "Failed to update request status",
+        title: "Error",
+        description: "Failed to update request status. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setUpdatingRequest(null)
+      setUpdatingStatus(false)
+    }
+  }
+
+  const copyToClipboard = async (text: string, requestId: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(requestId)
+      toast({
+        title: "Copied!",
+        description: "Request ID copied to clipboard",
+      })
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy to clipboard",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "قيد المراجعة":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      case "تمت الموافقة":
+        return "bg-blue-100 text-blue-800 border-blue-200"
+      case "قيد التنفيذ":
+        return "bg-orange-100 text-orange-800 border-orange-200"
+      case "تم الإنجاز":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "مرفوض":
+        return "bg-red-100 text-red-800 border-red-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "urgent":
+        return "bg-red-100 text-red-800 border-red-200"
+      case "high":
+        return "bg-orange-100 text-orange-800 border-orange-200"
+      case "medium":
+        return "bg-blue-100 text-blue-800 border-blue-200"
+      case "low":
+        return "bg-gray-100 text-gray-800 border-gray-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
 
   const getStatusIcon = (status: string) => {
-    const statusOption = statusOptions.find((s) => s.value === status)
-    if (statusOption) {
-      const IconComponent = statusOption.icon
-      return <IconComponent className="w-3 h-3 sm:w-4 sm:h-4" />
+    switch (status) {
+      case "قيد المراجعة":
+        return <Clock className="w-4 h-4" />
+      case "تمت الموافقة":
+        return <CheckCircle className="w-4 h-4" />
+      case "قيد التنفيذ":
+        return <AlertCircle className="w-4 h-4" />
+      case "تم الإنجاز":
+        return <CheckCircle className="w-4 h-4" />
+      case "مرفوض":
+        return <XCircle className="w-4 h-4" />
+      default:
+        return <Clock className="w-4 h-4" />
     }
-    return <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
   }
 
-  const getStatusColor = (status: string) => {
-    const statusOption = statusOptions.find((s) => s.value === status)
-    return statusOption?.color || "bg-gray-100 text-gray-800"
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "قيد المراجعة":
+        return "Under Review"
+      case "تمت الموافقة":
+        return "Approved"
+      case "قيد التنفيذ":
+        return "In Progress"
+      case "تم الإنجاز":
+        return "Completed"
+      case "مرفوض":
+        return "Rejected"
+      default:
+        return status
+    }
   }
 
-  // Filter requests
-  const filteredRequests = requests.filter((request) => {
-    if (statusFilter !== "all" && request.status !== statusFilter) return false
-    if (priorityFilter !== "all" && request.priority !== priorityFilter) return false
-    if (branchFilter !== "all" && request.branchCode !== branchFilter) return false
-    return true
-  })
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return ""
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
 
-  // Get unique branch codes for filter
-  const uniqueBranches = [...new Set(requests.map((r) => r.branchCode))].sort()
+  const getTimeAgo = (timestamp: any) => {
+    if (!timestamp) return ""
+
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    const now = new Date()
+    const diffInMs = now.getTime() - date.getTime()
+
+    const minutes = Math.floor(diffInMs / (1000 * 60))
+    const hours = Math.floor(diffInMs / (1000 * 60 * 60))
+    const days = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+
+    if (minutes < 1) return "Just now"
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+    return `${days}d ago`
+  }
+
+  const getUniqueValues = (key: keyof MaintenanceRequest) => {
+    return [...new Set(requests.map((request) => request[key]).filter(Boolean))]
+  }
 
   if (!user?.isManager) {
     return (
       <AppLayout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100 p-4">
+        <div className="min-h-screen flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="text-center py-12">
+              <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Access Denied</h3>
+              <p className="text-gray-500">Manager privileges required to access this page.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-sm sm:text-base text-gray-600">You need manager privileges to access this page.</p>
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-blue-600 font-medium">Loading requests...</p>
           </div>
         </div>
       </AppLayout>
     )
   }
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-            <p className="text-sm sm:text-base text-gray-600">Loading requests...</p>
-          </div>
-        </div>
-      </AppLayout>
-    )
+  const getRequestStats = () => {
+    return {
+      total: requests.length,
+      pending: requests.filter((r) => r.status === "قيد المراجعة").length,
+      inProgress: requests.filter((r) => r.status === "قيد التنفيذ").length,
+      completed: requests.filter((r) => r.status === "تم الإنجاز").length,
+    }
   }
+
+  const stats = getRequestStats()
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 lg:bg-gray-50">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 lg:py-8">
-          {/* Header - Mobile Optimized */}
-          <div className="space-y-4 mb-6 sm:mb-8">
-            <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Manager Dashboard</h1>
-              <p className="text-sm sm:text-base text-gray-600 mb-3">Manage maintenance requests from all branches</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-purple-100 text-purple-800 border-purple-200 rounded-full px-2 py-1 text-xs sm:px-3 sm:text-sm">
-                  Manager View
-                </Badge>
-                <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs sm:px-3 sm:text-sm">
-                  {filteredRequests.length} Requests
-                </Badge>
-              </div>
-            </div>
-            <div className="w-full">
-              <Button
-                onClick={cleanupOldRequests}
-                variant="outline"
-                className="w-full sm:w-auto rounded-2xl border-2 hover:bg-red-50 hover:border-red-200 bg-transparent text-sm h-10"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Clean Old Requests
-              </Button>
-            </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Manage Requests</h1>
+            <p className="text-gray-600">Review and manage all maintenance requests</p>
           </div>
 
-          {/* Filters - Mobile Optimized */}
-          <Card className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm mb-6">
-            <CardContent className="p-4 sm:p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11 text-sm">
-                      <SelectValue placeholder="All Statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      {statusOptions.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+                <div className="text-sm font-medium text-gray-600">Total</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                <div className="text-sm font-medium text-gray-600">Pending</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-orange-600">{stats.inProgress}</div>
+                <div className="text-sm font-medium text-gray-600">In Progress</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+                <div className="text-sm font-medium text-gray-600">Completed</div>
+              </CardContent>
+            </Card>
+          </div>
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Priority</label>
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11 text-sm">
-                      <SelectValue placeholder="All Priorities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      {PRIORITY_OPTIONS.map((priority) => (
-                        <SelectItem key={priority.value} value={priority.value}>
-                          {priority.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* Filters */}
+          <div className="mb-6 space-y-4 lg:space-y-0 lg:flex lg:gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Input
+                type="text"
+                placeholder="Search by ID, problem type, description, or branch..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500 lg:w-48">
+                <Filter className="w-5 h-5 mr-2" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="قيد المراجعة">Under Review</SelectItem>
+                <SelectItem value="تمت الموافقة">Approved</SelectItem>
+                <SelectItem value="قيد التنفيذ">In Progress</SelectItem>
+                <SelectItem value="تم الإنجاز">Completed</SelectItem>
+                <SelectItem value="مرفوض">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500 lg:w-48">
+                <SelectValue placeholder="Filter by priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500 lg:w-48">
+                <SelectValue placeholder="Filter by branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {getUniqueValues("branchCode").map((branch) => (
+                  <SelectItem key={branch} value={branch as string}>
+                    Branch {branch}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-                <div className="sm:col-span-2 lg:col-span-1">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Branch</label>
-                  <Select value={branchFilter} onValueChange={setBranchFilter}>
-                    <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11 text-sm">
-                      <SelectValue placeholder="All Branches" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Branches</SelectItem>
-                      {uniqueBranches.map((branch) => (
-                        <SelectItem key={branch} value={branch}>
-                          Branch {branch}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Requests Grid - Mobile Optimized */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {filteredRequests.map((request) => {
-              const nextStatus = getNextStatus(request.status)
-              const rejectOption = getRejectOption(request.status)
-
-              return (
-                <Card key={request.id} className="rounded-3xl border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-3 sm:pb-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-1">
-                          {request.problemType}
-                        </CardTitle>
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <Badge className="bg-blue-100 text-blue-800 border-blue-200 rounded-full px-2 py-1 text-xs flex items-center gap-1 flex-shrink-0">
-                            <MapPin className="w-3 h-3" />
-                            <span className="hidden sm:inline">Branch </span>
-                            {request.branchCode}
-                          </Badge>
-                          <Badge
-                            className={`${getPriorityColor(request.priority || "medium")} border rounded-full px-2 py-1 text-xs flex items-center gap-1 flex-shrink-0`}
-                          >
-                            {getPriorityIcon(request.priority || "medium")}
-                            <span className="truncate">
-                              {PRIORITY_OPTIONS.find((p) => p.value === request.priority)?.label || "Medium"}
-                            </span>
+          {/* Requests List */}
+          <div className="space-y-4">
+            {filteredRequests.length === 0 ? (
+              <Card className="rounded-2xl">
+                <CardContent className="text-center py-12">
+                  <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">No requests found</h3>
+                  <p className="text-gray-500">
+                    {searchQuery || statusFilter !== "all" || priorityFilter !== "all" || branchFilter !== "all"
+                      ? "Try adjusting your search or filter criteria"
+                      : "No maintenance requests have been submitted yet"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredRequests.map((request) => (
+                <Card key={request.id} className="rounded-2xl hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">{request.problemType}</h3>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(request.id!, request.id!)}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {copiedId === request.id ? (
+                                <Check className="w-3 h-3 text-green-600" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                              <span className="ml-1 font-mono">{request.id?.slice(-8)}</span>
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mb-3">
+                            <Badge
+                              className={`${getStatusColor(request.status)} border rounded-full px-3 py-1 flex items-center gap-1`}
+                            >
+                              {getStatusIcon(request.status)}
+                              <span className="font-medium">{getStatusText(request.status)}</span>
+                            </Badge>
+                            {request.priority && (
+                              <Badge className={`${getPriorityColor(request.priority)} border rounded-full px-3 py-1`}>
+                                {request.priority}
+                              </Badge>
+                            )}
+                            <Badge className="bg-gray-100 text-gray-800 border-gray-200 rounded-full px-3 py-1">
+                              Branch {request.branchCode}
+                            </Badge>
+                            {request.rating && (
+                              <Badge className="bg-yellow-50 text-yellow-800 border-yellow-200 rounded-full px-3 py-1">
+                                ⭐ {request.rating}/5
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-3 py-1 text-sm whitespace-nowrap">
+                            {getTimeAgo(request.timestamp)}
                           </Badge>
                         </div>
                       </div>
-                      {/* Time ago badge - positioned in top right */}
-                      <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs flex-shrink-0 whitespace-nowrap">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {getTimeAgo(request.timestamp)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0 space-y-4">
-                    <p className="text-gray-600 text-xs sm:text-sm line-clamp-2 leading-relaxed">
-                      {request.description}
-                    </p>
 
-                    <div className="flex items-center justify-between">
-                      <Badge
-                        className={`${getStatusColor(request.status)} border rounded-full px-2 py-1 text-xs flex items-center gap-1 flex-shrink-0`}
-                      >
-                        {getStatusIcon(request.status)}
-                        <span className="truncate">
-                          {statusOptions.find((s) => s.value === request.status)?.label || request.status}
-                        </span>
-                      </Badge>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                      {/* Description */}
+                      <p className="text-gray-600 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                      {/* Completion message */}
+                      {request.completionMessage && (
+                        <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                          <p className="text-sm font-medium text-green-800 mb-1">✅ Completion Message:</p>
+                          <p className="text-sm text-green-700">{request.completionMessage}</p>
+                        </div>
+                      )}
+
+                      {/* Meta info */}
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(request.timestamp)}</span>
+                        </div>
                         {request.imageUrl && (
                           <div className="flex items-center gap-1">
-                            <ImageIcon className="w-3 h-3" />
-                            <span className="hidden sm:inline">Photo</span>
+                            <ImageIcon className="w-4 h-4" />
+                            <span>Photo attached</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          <span className="hidden sm:inline">
-                            {request.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
-                          </span>
-                        </div>
+                        {request.userEmail && (
+                          <div className="flex items-center gap-1">
+                            <span>By: {request.userEmail}</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
 
-                    {/* Quick Action Buttons - Mobile Optimized */}
-                    <div className="space-y-2">
-                      {nextStatus && (
-                        <Button
-                          onClick={() => updateRequestStatus(request.id, nextStatus.status, request)}
-                          disabled={updatingRequest === request.id}
-                          className={`${nextStatus.color} text-white rounded-2xl text-xs sm:text-sm h-10 w-full flex items-center justify-center gap-2`}
-                        >
-                          {updatingRequest === request.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                          ) : (
-                            <>
-                              <nextStatus.icon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              {nextStatus.label}
-                              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </>
-                          )}
-                        </Button>
-                      )}
-
-                      {rejectOption && (
-                        <Button
-                          onClick={() => updateRequestStatus(request.id, rejectOption.status, request)}
-                          disabled={updatingRequest === request.id}
-                          variant="outline"
-                          className={`${rejectOption.color} text-white border-red-600 rounded-2xl text-xs sm:text-sm h-10 w-full flex items-center justify-center gap-2`}
-                        >
-                          {updatingRequest === request.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent" />
-                          ) : (
-                            <>
-                              <rejectOption.icon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              {rejectOption.label}
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 rounded-2xl border-2 bg-transparent text-xs sm:text-sm h-10"
-                            onClick={() => setSelectedRequest(request)}
-                          >
-                            <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            <span className="hidden sm:inline">View Details</span>
-                            <span className="sm:hidden">Details</span>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="mx-4 max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle className="text-lg sm:text-xl font-semibold">Request Details</DialogTitle>
-                          </DialogHeader>
-                          {selectedRequest && (
-                            <div className="space-y-4 sm:space-y-6">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                    Problem Type
-                                  </label>
-                                  <p className="text-sm sm:text-base text-gray-900">{selectedRequest.problemType}</p>
-                                </div>
-                                <div>
-                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                    Branch
-                                  </label>
-                                  <p className="text-sm sm:text-base text-gray-900">
-                                    Branch {selectedRequest.branchCode}
-                                  </p>
-                                </div>
-                                <div>
-                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                    Priority
-                                  </label>
-                                  <Badge
-                                    className={`${getPriorityColor(selectedRequest.priority || "medium")} border rounded-full px-2 py-1 text-xs`}
-                                  >
-                                    {getPriorityIcon(selectedRequest.priority || "medium")}
-                                    <span className="ml-1">
-                                      {PRIORITY_OPTIONS.find((p) => p.value === selectedRequest.priority)?.label ||
-                                        "Medium"}
-                                    </span>
-                                  </Badge>
-                                </div>
-                                <div>
-                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                    Current Status
-                                  </label>
-                                  <Badge
-                                    className={`${getStatusColor(selectedRequest.status)} border rounded-full px-2 py-1 text-xs`}
-                                  >
-                                    {getStatusIcon(selectedRequest.status)}
-                                    <span className="ml-1">
-                                      {statusOptions.find((s) => s.value === selectedRequest.status)?.label}
-                                    </span>
-                                  </Badge>
-                                </div>
-                                <div className="sm:col-span-2">
-                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                                    Submitted
-                                  </label>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-sm sm:text-base text-gray-900">
-                                      {selectedRequest.timestamp?.toDate?.()?.toLocaleDateString() || "N/A"}
+                      {/* Actions */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              onClick={() => setSelectedRequest(request)}
+                              className="h-10 rounded-xl border-2"
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Request Details</DialogTitle>
+                            </DialogHeader>
+                            {selectedRequest && (
+                              <div className="space-y-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Request ID</label>
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <code className="text-sm bg-gray-100 px-2 py-1 rounded font-mono">
+                                        {selectedRequest.id}
+                                      </code>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(selectedRequest.id!, selectedRequest.id!)}
+                                        className="h-6 px-2"
+                                      >
+                                        {copiedId === selectedRequest.id ? (
+                                          <Check className="w-3 h-3 text-green-600" />
+                                        ) : (
+                                          <Copy className="w-3 h-3" />
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Problem Type</label>
+                                    <p className="text-sm text-gray-900 mt-1">{selectedRequest.problemType}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Status</label>
+                                    <div className="mt-1">
+                                      <Badge
+                                        className={`${getStatusColor(selectedRequest.status)} border rounded-full px-3 py-1 flex items-center gap-1 w-fit`}
+                                      >
+                                        {getStatusIcon(selectedRequest.status)}
+                                        <span className="font-medium">{getStatusText(selectedRequest.status)}</span>
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Priority</label>
+                                    <div className="mt-1">
+                                      <Badge
+                                        className={`${getPriorityColor(selectedRequest.priority || "low")} border rounded-full px-3 py-1 w-fit`}
+                                      >
+                                        {selectedRequest.priority || "Not set"}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Branch Code</label>
+                                    <p className="text-sm text-gray-900 mt-1">{selectedRequest.branchCode}</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Submitted</label>
+                                    <p className="text-sm text-gray-900 mt-1">
+                                      {formatDate(selectedRequest.timestamp)}
                                     </p>
-                                    <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-1 text-xs">
-                                      {getTimeAgo(selectedRequest.timestamp)}
-                                    </Badge>
                                   </div>
                                 </div>
-                              </div>
 
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                                  Description
-                                </label>
-                                <p className="text-sm sm:text-base text-gray-900 bg-gray-50 p-3 sm:p-4 rounded-2xl leading-relaxed">
-                                  {selectedRequest.description}
-                                </p>
-                              </div>
-
-                              {selectedRequest.imageUrl && (
                                 <div>
-                                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                                    Attached Image
+                                  <label className="text-sm font-medium text-gray-700">Description</label>
+                                  <p className="text-sm text-gray-900 mt-2 leading-relaxed">
+                                    {selectedRequest.description}
+                                  </p>
+                                </div>
+
+                                {selectedRequest.imageUrl && (
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Attached Photo</label>
+                                    <ImageViewer
+                                      src={selectedRequest.imageUrl || "/placeholder.svg"}
+                                      alt="Request attachment"
+                                      className="mt-2 w-full h-64 object-cover rounded-xl border"
+                                    />
+                                  </div>
+                                )}
+
+                                {selectedRequest.completionMessage && (
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Completion Message</label>
+                                    <div className="mt-2 p-4 bg-green-50 rounded-xl border border-green-200">
+                                      <p className="text-sm text-green-700">{selectedRequest.completionMessage}</p>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {selectedRequest.rating && (
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-700">Customer Rating</label>
+                                    <div className="mt-2 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-2xl">⭐</span>
+                                        <span className="font-medium text-yellow-800">
+                                          {selectedRequest.rating}/5 stars
+                                        </span>
+                                      </div>
+                                      {selectedRequest.feedback && (
+                                        <p className="text-sm text-gray-700">{selectedRequest.feedback}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              onClick={() => {
+                                setManagingRequest(request.id!)
+                                setNewStatus(request.status)
+                                setCompletionMessage(request.completionMessage || "")
+                              }}
+                              className="h-10 bg-blue-600 hover:bg-blue-700 rounded-xl"
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Manage
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="rounded-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Manage Request</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-6">
+                              <div>
+                                <label className="text-sm font-medium text-gray-700 mb-2 block">Update Status</label>
+                                <Select value={newStatus} onValueChange={setNewStatus}>
+                                  <SelectTrigger className="h-12 rounded-xl border-2">
+                                    <SelectValue placeholder="Select new status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="قيد المراجعة">Under Review</SelectItem>
+                                    <SelectItem value="تمت الموافقة">Approved</SelectItem>
+                                    <SelectItem value="قيد التنفيذ">In Progress</SelectItem>
+                                    <SelectItem value="تم الإنجاز">Completed</SelectItem>
+                                    <SelectItem value="مرفوض">Rejected</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {newStatus === "تم الإنجاز" && (
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                                    Completion Message (Optional)
                                   </label>
-                                  <ImageViewer
-                                    src={selectedRequest.imageUrl || "/placeholder.svg"}
-                                    alt="Request image"
+                                  <Textarea
+                                    placeholder="Add a completion message for the user..."
+                                    value={completionMessage}
+                                    onChange={(e) => setCompletionMessage(e.target.value)}
+                                    rows={4}
+                                    className="rounded-xl border-2 resize-none"
                                   />
                                 </div>
                               )}
 
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                                  Update Status
-                                </label>
-                                <Select
-                                  value={selectedRequest.status}
-                                  onValueChange={(newStatus) =>
-                                    updateRequestStatus(selectedRequest.id, newStatus, selectedRequest)
-                                  }
+                              <div className="flex flex-col sm:flex-row gap-3">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setManagingRequest(null)
+                                    setNewStatus("")
+                                    setCompletionMessage("")
+                                  }}
+                                  disabled={updatingStatus}
+                                  className="h-12 rounded-xl border-2 flex-1"
                                 >
-                                  <SelectTrigger className="rounded-2xl border-2 h-10 sm:h-11">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {statusOptions.map((status) => (
-                                      <SelectItem key={status.value} value={status.value}>
-                                        <div className="flex items-center gap-2">
-                                          <status.icon className="w-4 h-4" />
-                                          {status.label}
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={handleStatusUpdate}
+                                  disabled={!newStatus || updatingStatus}
+                                  className="h-12 bg-blue-600 hover:bg-blue-700 rounded-xl flex-1"
+                                >
+                                  {updatingStatus ? (
+                                    <div className="flex items-center gap-2">
+                                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                      Updating...
+                                    </div>
+                                  ) : (
+                                    "Update Status"
+                                  )}
+                                </Button>
                               </div>
                             </div>
-                          )}
-                        </DialogContent>
-                      </Dialog>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              )
-            })}
+              ))
+            )}
           </div>
-
-          {filteredRequests.length === 0 && (
-            <div className="text-center py-8 sm:py-12">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
-              </div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No Requests Found</h3>
-              <p className="text-sm sm:text-base text-gray-600">No maintenance requests match your current filters.</p>
-            </div>
-          )}
         </div>
       </div>
     </AppLayout>
