@@ -76,7 +76,7 @@ export default function AnalyticsPage() {
   const inProgressRequests = requests.filter((r) => r.status === "قيد التنفيذ").length
   const completedRequests = requests.filter((r) => r.status === "تم الإنجاز").length
   const rejectedRequests = requests.filter((r) => r.status === "مرفوض").length
-
+  const x=0
   // Calculate average rating
   const ratedRequests = requests.filter((r) => r.rating && r.rating > 0)
   const averageRating =
