@@ -773,27 +773,33 @@ export default function ManagerPage() {
         </div>
 
         {/* Simple Image Viewer Modal */}
-        {imageViewerOpen && selectedImage && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-            onClick={closeImageViewer}
-          >
-            <div className="relative max-w-4xl max-h-full">
-              <button
-                onClick={closeImageViewer}
-                className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
-              >
-                <X className="w-8 h-8" />
-              </button>
-              <img
-                src={selectedImage || "/placeholder.svg"}
-                alt="Full size image"
-                className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          </div>
-        )}
+{selectedImage && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+    onClick={() => {
+      setImageViewerOpen(false)
+      setSelectedImage(null)
+    }}
+  >
+    <div className="relative max-w-4xl max-h-full">
+      <button
+        onClick={() => {
+          setImageViewerOpen(false)
+          setSelectedImage(null)
+        }}
+        className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+      >
+        <X className="w-8 h-8" />
+      </button>
+      <img
+        src={selectedImage.src || "/placeholder.svg"}
+        alt={selectedImage.alt}
+        className="max-w-full max-h-[90vh] object-contain rounded-lg"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  </div>
+)}
       </div>
     </AppLayout>
   )
