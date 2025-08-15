@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ImageViewer } from "@/components/ui/image-viewer"
 import {
   Eye,
   Clock,
@@ -34,6 +33,7 @@ import {
   Check,
   Search,
   Copy,
+  X,
 } from "lucide-react"
 import type { MaintenanceRequest } from "@/lib/types"
 import { PRIORITY_OPTIONS } from "@/lib/types"
@@ -124,7 +124,7 @@ export default function ManagerPage() {
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [updatingRequest, setUpdatingRequest] = useState<string | null>(null)
   const [imageViewerOpen, setImageViewerOpen] = useState(false)
-  const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string } | null>(null)
+  const [selectedImage, setSelectedImage] = useState<string>("")
 
   // Cleanup old requests
   const cleanupOldRequests = async () => {
@@ -170,9 +170,15 @@ export default function ManagerPage() {
   }
 
   // Open image viewer
-  const openImageViewer = (src: string, alt: string) => {
-    setSelectedImage({ src, alt })
+  const openImageViewer = (src: string) => {
+    setSelectedImage(src)
     setImageViewerOpen(true)
+  }
+
+  // Close image viewer
+  const closeImageViewer = () => {
+    setImageViewerOpen(false)
+    setSelectedImage("")
   }
 
   useEffect(() => {
@@ -505,7 +511,7 @@ export default function ManagerPage() {
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         {request.imageUrl && (
                           <button
-                            onClick={() => openImageViewer(request.imageUrl!, `${request.problemType} image`)}
+                            onClick={() => openImageViewer(request.imageUrl!)}
                             className="flex items-center gap-1 hover:text-blue-600 transition-colors"
                           >
                             <ImageIcon className="w-3 h-3" />
@@ -678,12 +684,7 @@ export default function ManagerPage() {
                                       src={selectedRequest.imageUrl || "/placeholder.svg"}
                                       alt="Request attachment"
                                       className="w-full h-64 object-cover rounded-2xl border cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() =>
-                                        openImageViewer(
-                                          selectedRequest.imageUrl!,
-                                          `${selectedRequest.problemType} image`,
-                                        )
-                                      }
+                                      onClick={() => openImageViewer(selectedRequest.imageUrl!)}
                                     />
                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20 rounded-2xl">
                                       <Eye className="w-8 h-8 text-white" />
@@ -771,17 +772,27 @@ export default function ManagerPage() {
           )}
         </div>
 
-        {/* Image Viewer */}
-        {selectedImage && (
-          <ImageViewer
-            src={selectedImage.src || "/placeholder.svg"}
-            alt={selectedImage.alt}
-            isOpen={imageViewerOpen}
-            onClose={() => {
-              setImageViewerOpen(false)
-              setSelectedImage(null)
-            }}
-          />
+        {/* Simple Image Viewer Modal */}
+        {imageViewerOpen && selectedImage && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            onClick={closeImageViewer}
+          >
+            <div className="relative max-w-4xl max-h-full">
+              <button
+                onClick={closeImageViewer}
+                className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
+              >
+                <X className="w-8 h-8" />
+              </button>
+              <img
+                src={selectedImage || "/placeholder.svg"}
+                alt="Full size image"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
         )}
       </div>
     </AppLayout>
