@@ -11,6 +11,8 @@ interface AuthContextType {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  signInWithGoogle: () => Promise<void>;
+
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -83,10 +85,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     logout,
+    signInWithGoogle: function (): Promise<void> {
+      throw new Error("Function not implemented.")
+    }
   }
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }
+
 
 export function useAuth() {
   const context = useContext(AuthContext)

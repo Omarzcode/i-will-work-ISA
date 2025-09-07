@@ -1,10 +1,12 @@
 import type { Timestamp } from "firebase/firestore"
 
 export interface User {
-  uid: string
-  email: string
-  branchCode: string
-  isManager: boolean
+  uid: string;
+  email: string;
+  isManager: boolean;
+  branchCode: string;
+  displayName?: string;
+  photoURL?: string;
 }
 
 export interface MaintenanceRequest {
